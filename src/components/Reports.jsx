@@ -84,7 +84,10 @@ export default function Reports() {
                     <Cell key={c.id} fill={c.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => formatMoney(value)} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1d24', border: '1px solid #2a2e37', borderRadius: 8, color: '#e5e7eb' }}
+                  formatter={(value) => formatMoney(value)}
+                />
               </PieChart>
             </ResponsiveContainer>
             <ul className="legend-list">
@@ -104,11 +107,15 @@ export default function Reports() {
             <h3>Últimos 6 meses</h3>
             <ResponsiveContainer width="100%" height={220}>
               <BarChart data={byMonth}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="month" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a2e37" />
+                <XAxis dataKey="month" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis hide />
-                <Tooltip formatter={(value) => formatMoney(value)} />
-                <Bar dataKey="total" fill="#16a34a" radius={[6, 6, 0, 0]} />
+                <Tooltip
+                  cursor={{ fill: '#ffffff10' }}
+                  contentStyle={{ background: '#1a1d24', border: '1px solid #2a2e37', borderRadius: 8, color: '#e5e7eb' }}
+                  formatter={(value) => formatMoney(value)}
+                />
+                <Bar dataKey="total" fill="#22c55e" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </section>

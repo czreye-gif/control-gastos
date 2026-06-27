@@ -4,8 +4,8 @@
   "description": "Registra y controla tus gastos diarios desde cualquier dispositivo",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f5f7f5",
-  "theme_color": "#16a34a",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
   "icons": [
     { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
   ]

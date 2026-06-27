@@ -1,28 +1,37 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
 import { todayISO } from '../utils/dates'
+import { formatMoney } from './ExpenseList'
+
+const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
 
 export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const { categories } = useCategories()
   const navigate = useNavigate()
-  const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
+  // El monto se maneja en centavos, como en las terminales bancarias:
+  // cada dígito que tecleas se acomoda desde la derecha.
+  const [cents, setCents] = useState(initial ? Math.round(initial.amount * 100) : 0)
   const [category, setCategory] = useState(initial?.category ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
-  const amountRef = useRef(null)
 
-  // Al abrir, el cursor va directo al monto y se abre el teclado numérico.
-  useEffect(() => {
-    const t = setTimeout(() => amountRef.current?.focus(), 50)
-    return () => clearTimeout(t)
-  }, [])
+  const amount = cents / 100
+  const canSave = cents > 0 && category
 
-  const canSave = Number(amount) > 0 && category
+  const pressKey = (k) => {
+    if (k === 'back') {
+      setCents((c) => Math.floor(c / 10))
+    } else if (k === '00') {
+      setCents((c) => Math.min(c * 100, 9_999_999_99))
+    } else {
+      setCents((c) => Math.min(c * 10 + Number(k), 9_999_999_99))
+    }
+  }
 
   const handleSave = () => {
     if (!canSave) return
-    onSave({ amount: Number(amount), category, note: note.trim(), date })
+    onSave({ amount, category, note: note.trim(), date })
   }
 
   const goToCategories = () => {
@@ -31,24 +40,14 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   }
 
   return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="sheet-handle" />
-        <h2>{initial ? 'Editar gasto' : 'Nuevo gasto'}</h2>
-
-        <div className="amount-row">
-          <span className="amount-symbol">$</span>
-          <input
-            ref={amountRef}
-            className="amount-input"
-            type="text"
-            inputMode="decimal"
-            autoFocus
-            placeholder="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
-          />
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2>{initial ? 'Editar gasto' : 'Nuevo gasto'}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
+
+        <div className="amount-display">{formatMoney(amount)}</div>
 
         <div className="category-grid">
           {categories.map((c) => (
@@ -67,6 +66,14 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
             <span className="category-icon">✏️</span>
             <span>Editar</span>
           </button>
+        </div>
+
+        <div className="keypad">
+          {KEYS.map((k) => (
+            <button key={k} type="button" className="key" onClick={() => pressKey(k)}>
+              {k === 'back' ? '⌫' : k}
+            </button>
+          ))}
         </div>
 
         <input

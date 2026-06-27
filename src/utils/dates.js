@@ -3,9 +3,10 @@ const MESES = [
   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
 ]
 
+const DIAS_CORTOS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+
 export function todayISO() {
-  const d = new Date()
-  return toISO(d)
+  return toISO(new Date())
 }
 
 export function toISO(date) {
@@ -17,9 +18,7 @@ export function toISO(date) {
 
 export function formatDayLabel(isoDate) {
   const todayStr = todayISO()
-  const yesterday = new Date()
-  yesterday.setDate(yesterday.getDate() - 1)
-  const yStr = toISO(yesterday)
+  const yStr = addDaysISO(todayStr, -1)
 
   if (isoDate === todayStr) return 'Hoy'
   if (isoDate === yStr) return 'Ayer'
@@ -38,8 +37,34 @@ export function currentMonthISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
+export function prevMonthISO() {
+  const d = new Date()
+  d.setDate(1)
+  d.setMonth(d.getMonth() - 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export function monthOf(isoDate) {
   return isoDate.slice(0, 7)
+}
+
+export function addDaysISO(iso, n) {
+  const d = new Date(iso + 'T00:00:00')
+  d.setDate(d.getDate() + n)
+  return toISO(d)
+}
+
+// Lunes de la semana a la que pertenece la fecha dada.
+export function startOfWeekISO(iso = todayISO()) {
+  const d = new Date(iso + 'T00:00:00')
+  const day = (d.getDay() + 6) % 7 // 0 = lunes
+  d.setDate(d.getDate() - day)
+  return toISO(d)
+}
+
+export function shortDayName(iso) {
+  const d = new Date(iso + 'T00:00:00')
+  return DIAS_CORTOS[d.getDay()]
 }
 
 export function lastNMonths(n) {

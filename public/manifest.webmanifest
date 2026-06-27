@@ -1,0 +1,12 @@
+{
+  "name": "Control de Gastos",
+  "short_name": "Gastos",
+  "description": "Registra y controla tus gastos diarios desde cualquier dispositivo",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f7f5",
+  "theme_color": "#16a34a",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

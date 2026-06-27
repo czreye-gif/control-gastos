@@ -12,12 +12,13 @@ import {
   YAxis,
 } from 'recharts'
 import { useExpenses } from '../utils/useExpenses'
-import { CATEGORIES } from '../utils/categories'
+import { useCategories } from '../contexts/CategoriesContext'
 import { currentMonthISO, formatMonthLabel, lastNMonths, monthOf } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
 
 export default function Reports() {
   const { expenses, loading } = useExpenses()
+  const { categories } = useCategories()
   const [month, setMonth] = useState(currentMonthISO())
   const months = useMemo(() => lastNMonths(6), [])
 
@@ -33,8 +34,8 @@ export default function Reports() {
     for (const e of monthExpenses) {
       map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
     }
-    return CATEGORIES.map((c) => ({ ...c, value: map.get(c.id) ?? 0 })).filter((c) => c.value > 0)
-  }, [monthExpenses])
+    return categories.map((c) => ({ ...c, value: map.get(c.id) ?? 0 })).filter((c) => c.value > 0)
+  }, [monthExpenses, categories])
 
   const byMonth = useMemo(() => {
     return months.map((m) => ({
@@ -74,7 +75,7 @@ export default function Reports() {
                 <Pie
                   data={byCategory}
                   dataKey="value"
-                  nameKey="label"
+                  nameKey="name"
                   innerRadius={55}
                   outerRadius={90}
                   paddingAngle={2}
@@ -92,7 +93,7 @@ export default function Reports() {
                 .map((c) => (
                   <li key={c.id}>
                     <span className="legend-dot" style={{ background: c.color }} />
-                    <span>{c.icon} {c.label}</span>
+                    <span>{c.icon} {c.name}</span>
                     <span className="legend-amount">{formatMoney(c.value)}</span>
                   </li>
                 ))}

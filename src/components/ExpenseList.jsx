@@ -1,7 +1,9 @@
-import { getCategory } from '../utils/categories'
+import { useCategories } from '../contexts/CategoriesContext'
 import { formatDayLabel } from '../utils/dates'
 
 export default function ExpenseList({ expenses, onSelect }) {
+  const { getCategory } = useCategories()
+
   if (expenses.length === 0) {
     return (
       <div className="empty-state">
@@ -33,7 +35,7 @@ export default function ExpenseList({ expenses, onSelect }) {
                   {cat.icon}
                 </span>
                 <span className="expense-info">
-                  <span className="expense-category">{cat.label}</span>
+                  <span className="expense-category">{cat.name}</span>
                   {expense.note && <span className="expense-note">{expense.note}</span>}
                 </span>
                 <span className="expense-amount">{formatMoney(expense.amount)}</span>

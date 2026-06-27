@@ -1,7 +1,9 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/expenses/{expenseId} {
+    // Cada usuario solo puede leer/escribir sus propios datos
+    // (gastos, categorías y cualquier otra subcolección suya).
+    match /users/{userId}/{document=**} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }

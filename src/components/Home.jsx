@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
 import { useExpenses } from '../utils/useExpenses'
@@ -6,6 +7,7 @@ import { todayISO } from '../utils/dates'
 
 export default function Home() {
   const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses()
+  const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
 
@@ -32,6 +34,12 @@ export default function Home() {
 
   return (
     <div className="page">
+      <div className="home-topbar">
+        <h2>Mis gastos</h2>
+        <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
+          ⚙️
+        </button>
+      </div>
       <header className="home-header">
         <p>Gastado hoy</p>
         <h1>{formatMoney(todayTotal)}</h1>

@@ -20,11 +20,15 @@ export default function Reports() {
   const { expenses, loading } = useExpenses()
   const { categories } = useCategories()
   const [month, setMonth] = useState(currentMonthISO())
+  const [type, setType] = useState('expense')
   const months = useMemo(() => lastNMonths(6), [])
 
+  const typeExpenses = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === type), [expenses, type])
+  const typeCategories = useMemo(() => categories.filter((c) => c.type === type), [categories, type])
+
   const monthExpenses = useMemo(
-    () => expenses.filter((e) => monthOf(e.date) === month),
-    [expenses, month]
+    () => typeExpenses.filter((e) => monthOf(e.date) === month),
+    [typeExpenses, month]
   )
 
   const total = monthExpenses.reduce((acc, e) => acc + e.amount, 0)
@@ -34,15 +38,15 @@ export default function Reports() {
     for (const e of monthExpenses) {
       map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
     }
-    return categories.map((c) => ({ ...c, value: map.get(c.id) ?? 0 })).filter((c) => c.value > 0)
-  }, [monthExpenses, categories])
+    return typeCategories.map((c) => ({ ...c, value: map.get(c.id) ?? 0 })).filter((c) => c.value > 0)
+  }, [monthExpenses, typeCategories])
 
   const byMonth = useMemo(() => {
     return months.map((m) => ({
       month: formatMonthLabel(m).split(' ')[0].slice(0, 3),
-      total: expenses.filter((e) => monthOf(e.date) === m).reduce((acc, e) => acc + e.amount, 0),
+      total: typeExpenses.filter((e) => monthOf(e.date) === m).reduce((acc, e) => acc + e.amount, 0),
     }))
-  }, [expenses, months])
+  }, [typeExpenses, months])
 
   if (loading) return <p className="loading-text">Cargando...</p>
 
@@ -59,13 +63,32 @@ export default function Reports() {
         </select>
       </header>
 
+      <div className="type-toggle">
+        <button
+          type="button"
+          className={`type-toggle-btn ${type === 'expense' ? 'selected' : ''}`}
+          onClick={() => setType('expense')}
+        >
+          Gastos
+        </button>
+        <button
+          type="button"
+          className={`type-toggle-btn income ${type === 'income' ? 'selected' : ''}`}
+          onClick={() => setType('income')}
+        >
+          Ingresos
+        </button>
+      </div>
+
       <div className="total-card">
         <p>Total de {formatMonthLabel(month)}</p>
         <h2>{formatMoney(total)}</h2>
       </div>
 
       {byCategory.length === 0 ? (
-        <p className="empty-state">No hay gastos registrados este mes.</p>
+        <p className="empty-state">
+          {type === 'income' ? 'No hay ingresos registrados este mes.' : 'No hay gastos registrados este mes.'}
+        </p>
       ) : (
         <>
           <section className="chart-card">

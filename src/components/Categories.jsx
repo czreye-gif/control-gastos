@@ -1,18 +1,27 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
-import { COLOR_OPTIONS, ICON_OPTIONS } from '../utils/categories'
+import { COLOR_OPTIONS, ICON_GROUPS } from '../utils/categories'
 
 export default function Categories() {
-  const { categories, addCategory, updateCategory, deleteCategory } = useCategories()
+  const { categories, addCategory, updateCategory, deleteCategory, addSubcategory, deleteSubcategory } =
+    useCategories()
   const navigate = useNavigate()
+  const [type, setType] = useState('expense')
   const [editing, setEditing] = useState(null) // null | 'new' | categoría
+
+  const visible = useMemo(() => categories.filter((c) => c.type === type), [categories, type])
+
+  // `editing` solo guarda el id; la categoría "viva" se busca en cada render
+  // para que los cambios de Firestore (p.ej. subcategorías) se reflejen al instante.
+  const editingCategory =
+    editing && editing !== 'new' ? categories.find((c) => c.id === editing.id) ?? editing : editing
 
   const handleSave = async ({ name, icon, color }) => {
     if (editing && editing !== 'new') {
       await updateCategory(editing.id, { name, icon, color })
     } else {
-      await addCategory({ name, icon, color })
+      await addCategory({ name, icon, color, type })
     }
     setEditing(null)
   }
@@ -31,13 +40,35 @@ export default function Categories() {
         <h1>Categorías</h1>
       </header>
 
+      <div className="type-toggle">
+        <button
+          type="button"
+          className={`type-toggle-btn ${type === 'expense' ? 'selected' : ''}`}
+          onClick={() => setType('expense')}
+        >
+          Gastos
+        </button>
+        <button
+          type="button"
+          className={`type-toggle-btn income ${type === 'income' ? 'selected' : ''}`}
+          onClick={() => setType('income')}
+        >
+          Ingresos
+        </button>
+      </div>
+
       <div className="category-rows">
-        {categories.map((c) => (
+        {visible.map((c) => (
           <button key={c.id} className="category-row" onClick={() => setEditing(c)}>
             <span className="row-icon" style={{ background: c.color + '22', color: c.color }}>
               {c.icon}
             </span>
-            <span className="row-name">{c.name}</span>
+            <span className="row-name">
+              {c.name}
+              {c.subcategories?.length > 0 && (
+                <span className="row-sub-count"> · {c.subcategories.length} subcategorías</span>
+              )}
+            </span>
             <span className="row-edit">Editar ›</span>
           </button>
         ))}
@@ -49,9 +80,11 @@ export default function Categories() {
 
       {editing && (
         <CategoryEditor
-          initial={editing === 'new' ? null : editing}
+          initial={editing === 'new' ? null : editingCategory}
           onSave={handleSave}
           onDelete={handleDelete}
+          onAddSubcategory={(data) => addSubcategory(editingCategory.id, data)}
+          onDeleteSubcategory={(subId) => deleteSubcategory(editingCategory.id, subId)}
           onClose={() => setEditing(null)}
         />
       )}
@@ -59,12 +92,19 @@ export default function Categories() {
   )
 }
 
-function CategoryEditor({ initial, onSave, onDelete, onClose }) {
+function CategoryEditor({ initial, onSave, onDelete, onAddSubcategory, onDeleteSubcategory, onClose }) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [icon, setIcon] = useState(initial?.icon ?? ICON_OPTIONS[0])
+  const [icon, setIcon] = useState(initial?.icon ?? ICON_GROUPS[0].icons[0])
   const [color, setColor] = useState(initial?.color ?? COLOR_OPTIONS[0])
+  const [subName, setSubName] = useState('')
 
   const canSave = name.trim().length > 0
+
+  const handleAddSub = () => {
+    if (!subName.trim()) return
+    onAddSubcategory({ name: subName.trim() })
+    setSubName('')
+  }
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -86,16 +126,23 @@ function CategoryEditor({ initial, onSave, onDelete, onClose }) {
         />
 
         <p className="picker-label">Icono</p>
-        <div className="icon-picker">
-          {ICON_OPTIONS.map((i) => (
-            <button
-              key={i}
-              type="button"
-              className={`icon-option ${icon === i ? 'selected' : ''}`}
-              onClick={() => setIcon(i)}
-            >
-              {i}
-            </button>
+        <div className="icon-picker-groups">
+          {ICON_GROUPS.map((group) => (
+            <div key={group.label} className="icon-group">
+              <p className="icon-group-label">{group.label}</p>
+              <div className="icon-picker">
+                {group.icons.map((i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`icon-option ${icon === i ? 'selected' : ''}`}
+                    onClick={() => setIcon(i)}
+                  >
+                    {i}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
 
@@ -111,6 +158,48 @@ function CategoryEditor({ initial, onSave, onDelete, onClose }) {
             />
           ))}
         </div>
+
+        {initial && (
+          <>
+            <p className="picker-label">Subcategorías</p>
+            <div className="subcategory-list">
+              {(initial.subcategories ?? []).map((s) => (
+                <span key={s.id} className="subcategory-tag">
+                  {s.name}
+                  <button
+                    type="button"
+                    className="subcategory-remove"
+                    onClick={() => onDeleteSubcategory(s.id)}
+                    aria-label={`Eliminar ${s.name}`}
+                  >
+                    ✕
+                  </button>
+                </span>
+              ))}
+              {(initial.subcategories ?? []).length === 0 && (
+                <p className="subcategory-empty">Sin subcategorías todavía.</p>
+              )}
+            </div>
+            <div className="subcategory-add">
+              <input
+                className="note-input"
+                type="text"
+                placeholder="Nueva subcategoría"
+                value={subName}
+                onChange={(e) => setSubName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddSub()
+                  }
+                }}
+              />
+              <button type="button" className="icon-btn" onClick={handleAddSub} aria-label="Agregar subcategoría">
+                +
+              </button>
+            </div>
+          </>
+        )}
 
         <div className="sheet-actions">
           {initial && (

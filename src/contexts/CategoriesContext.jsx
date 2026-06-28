@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from './AuthContext'
-import { DEFAULT_CATEGORIES } from '../utils/categories'
+import { DEFAULT_CATEGORIES, DEFAULT_INCOME_CATEGORIES } from '../utils/categories'
 
 const CategoriesContext = createContext(null)
 
@@ -36,9 +36,10 @@ export function CategoriesProvider({ children }) {
       // Primera vez del usuario: sembramos las categorías por defecto.
       if (snapshot.empty && !seededRef.current) {
         seededRef.current = true
+        const seed = [...DEFAULT_CATEGORIES, ...DEFAULT_INCOME_CATEGORIES]
         const batch = writeBatch(db)
-        DEFAULT_CATEGORIES.forEach((c, i) => {
-          batch.set(doc(ref), { ...c, order: i, createdAt: serverTimestamp() })
+        seed.forEach((c, i) => {
+          batch.set(doc(ref), { ...c, subcategories: [], order: i, createdAt: serverTimestamp() })
         })
         await batch.commit()
         return // el onSnapshot volverá a dispararse ya con datos
@@ -49,12 +50,14 @@ export function CategoriesProvider({ children }) {
     return unsubscribe
   }, [user])
 
-  const addCategory = ({ name, icon, color }) => {
+  const addCategory = ({ name, icon, color, type }) => {
     const ref = collection(db, 'users', user.uid, 'categories')
     return addDoc(ref, {
       name,
       icon,
       color,
+      type,
+      subcategories: [],
       order: categories.length,
       createdAt: serverTimestamp(),
     })
@@ -75,13 +78,44 @@ export function CategoriesProvider({ children }) {
         name: 'Sin categoría',
         icon: '🧾',
         color: '#64748b',
+        type: 'expense',
+        subcategories: [],
       }
     )
   }
 
+  const getSubcategory = (categoryId, subcategoryId) => {
+    if (!subcategoryId) return null
+    const cat = getCategory(categoryId)
+    return cat.subcategories?.find((s) => s.id === subcategoryId) ?? null
+  }
+
+  const addSubcategory = (categoryId, { name, icon }) => {
+    const cat = getCategory(categoryId)
+    const subcategory = { id: crypto.randomUUID(), name, icon: icon ?? cat.icon }
+    return updateCategory(categoryId, { subcategories: [...(cat.subcategories ?? []), subcategory] })
+  }
+
+  const deleteSubcategory = (categoryId, subcategoryId) => {
+    const cat = getCategory(categoryId)
+    return updateCategory(categoryId, {
+      subcategories: (cat.subcategories ?? []).filter((s) => s.id !== subcategoryId),
+    })
+  }
+
   return (
     <CategoriesContext.Provider
-      value={{ categories, loading, addCategory, updateCategory, deleteCategory, getCategory }}
+      value={{
+        categories,
+        loading,
+        addCategory,
+        updateCategory,
+        deleteCategory,
+        getCategory,
+        getSubcategory,
+        addSubcategory,
+        deleteSubcategory,
+      }}
     >
       {children}
     </CategoriesContext.Provider>

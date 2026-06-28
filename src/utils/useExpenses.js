@@ -33,11 +33,13 @@ export function useExpenses() {
     return unsubscribe
   }, [user])
 
-  const addExpense = ({ amount, category, note, date }) => {
+  const addExpense = ({ amount, type, category, subcategory, note, date }) => {
     const ref = collection(db, 'users', user.uid, 'expenses')
     return addDoc(ref, {
       amount,
+      type: type || 'expense',
       category,
+      subcategory: subcategory || null,
       note: note || '',
       date,
       createdAt: serverTimestamp(),

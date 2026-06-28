@@ -7,17 +7,21 @@ import { formatMoney } from './ExpenseList'
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
 
 export default function AddExpense({ initial, onSave, onDelete, onClose }) {
-  const { categories } = useCategories()
+  const { categories, getCategory } = useCategories()
   const navigate = useNavigate()
   // El monto se maneja en centavos, como en las terminales bancarias:
   // cada dígito que tecleas se acomoda desde la derecha.
   const [cents, setCents] = useState(initial ? Math.round(initial.amount * 100) : 0)
+  const [type, setType] = useState(initial?.type ?? 'expense')
   const [category, setCategory] = useState(initial?.category ?? '')
+  const [subcategory, setSubcategory] = useState(initial?.subcategory ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
 
   const amount = cents / 100
   const canSave = cents > 0 && category
+  const visibleCategories = categories.filter((c) => c.type === type)
+  const subcategories = category ? getCategory(category).subcategories ?? [] : []
 
   const pressKey = (k) => {
     if (k === 'back') {
@@ -29,9 +33,20 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
     }
   }
 
+  const selectType = (t) => {
+    setType(t)
+    setCategory('')
+    setSubcategory('')
+  }
+
+  const selectCategory = (id) => {
+    setCategory(id)
+    setSubcategory('')
+  }
+
   const handleSave = () => {
     if (!canSave) return
-    onSave({ amount, category, note: note.trim(), date })
+    onSave({ amount, type, category, subcategory: subcategory || null, note: note.trim(), date })
   }
 
   const goToCategories = () => {
@@ -43,20 +58,39 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
-          <h2>{initial ? 'Editar gasto' : 'Nuevo gasto'}</h2>
+          <h2>{initial ? (type === 'income' ? 'Editar ingreso' : 'Editar gasto') : 'Nuevo movimiento'}</h2>
           <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
 
-        <div className="amount-display">{formatMoney(amount)}</div>
+        {!initial && (
+          <div className="type-toggle">
+            <button
+              type="button"
+              className={`type-toggle-btn ${type === 'expense' ? 'selected' : ''}`}
+              onClick={() => selectType('expense')}
+            >
+              Gasto
+            </button>
+            <button
+              type="button"
+              className={`type-toggle-btn income ${type === 'income' ? 'selected' : ''}`}
+              onClick={() => selectType('income')}
+            >
+              Ingreso
+            </button>
+          </div>
+        )}
+
+        <div className={`amount-display ${type === 'income' ? 'income' : ''}`}>{formatMoney(amount)}</div>
 
         <div className="category-grid">
-          {categories.map((c) => (
+          {visibleCategories.map((c) => (
             <button
               key={c.id}
               type="button"
               className={`category-chip ${category === c.id ? 'selected' : ''}`}
               style={{ '--chip-color': c.color }}
-              onClick={() => setCategory(c.id)}
+              onClick={() => selectCategory(c.id)}
             >
               <span className="category-icon">{c.icon}</span>
               <span>{c.name}</span>
@@ -67,6 +101,24 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
             <span>Editar</span>
           </button>
         </div>
+
+        {subcategories.length > 0 && (
+          <>
+            <p className="picker-label">Subcategoría (opcional)</p>
+            <div className="subcategory-picker">
+              {subcategories.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  className={`subcategory-chip ${subcategory === s.id ? 'selected' : ''}`}
+                  onClick={() => setSubcategory(subcategory === s.id ? '' : s.id)}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="keypad">
           {KEYS.map((k) => (

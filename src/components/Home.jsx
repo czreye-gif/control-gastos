@@ -28,7 +28,9 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
 
-  const stats = useMemo(() => computeStats(expenses), [expenses])
+  const expensesOnly = useMemo(() => expenses.filter((e) => e.type !== 'income'), [expenses])
+  const stats = useMemo(() => computeStats(expensesOnly), [expensesOnly])
+  const balance = useMemo(() => computeBalance(expenses), [expenses])
 
   const handleSave = async (data) => {
     if (editing) {
@@ -49,12 +51,30 @@ export default function Home() {
   return (
     <div className="page">
       <div className="home-topbar">
-        <h2>Mis gastos</h2>
+        <h2>Mis finanzas</h2>
         <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
           ⚙️
         </button>
       </div>
 
+      <div className="balance-card">
+        <div className="balance-item">
+          <span className="balance-label">Ingresos del mes</span>
+          <span className="balance-value income">{formatMoney(balance.income)}</span>
+        </div>
+        <div className="balance-item">
+          <span className="balance-label">Gastos del mes</span>
+          <span className="balance-value expense">{formatMoney(balance.expense)}</span>
+        </div>
+        <div className="balance-item">
+          <span className="balance-label">Balance</span>
+          <span className={`balance-value ${balance.balance >= 0 ? 'income' : 'expense'}`}>
+            {formatMoney(balance.balance)}
+          </span>
+        </div>
+      </div>
+
+      <h3 className="section-title">Gastos</h3>
       <div className="stat-grid">
         <StatCard label="Hoy" value={stats.today} prev={stats.yesterday} hint="vs ayer" />
         <StatCard label="Semana" value={stats.week} prev={stats.lastWeek} hint="vs sem. pasada" />
@@ -120,7 +140,7 @@ export default function Home() {
           setEditing(null)
           setShowAdd(true)
         }}
-        aria-label="Agregar gasto"
+        aria-label="Agregar movimiento"
       >
         +
       </button>
@@ -158,6 +178,14 @@ function StatCard({ label, value, prev, hint }) {
       )}
     </div>
   )
+}
+
+function computeBalance(expenses) {
+  const month = currentMonthISO()
+  const monthItems = expenses.filter((e) => monthOf(e.date) === month)
+  const income = monthItems.filter((e) => e.type === 'income').reduce((a, e) => a + e.amount, 0)
+  const expense = monthItems.filter((e) => e.type !== 'income').reduce((a, e) => a + e.amount, 0)
+  return { income, expense, balance: income - expense }
 }
 
 function computeStats(expenses) {

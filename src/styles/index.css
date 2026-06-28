@@ -157,6 +157,69 @@ input, select {
   margin: 20px 4px 10px;
 }
 
+/* Gasto / Ingreso toggle */
+.type-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 4px;
+}
+
+.type-toggle-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 0;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.type-toggle-btn.selected {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+.type-toggle-btn.income.selected {
+  background: var(--green-light);
+  color: var(--green);
+}
+
+/* Balance card (Inicio) */
+.balance-card {
+  display: flex;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.balance-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+  flex: 1;
+}
+
+.balance-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.balance-value {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.balance-value.income { color: var(--green); }
+.balance-value.expense { color: var(--danger); }
+
 /* Dashboard stat cards */
 .stat-grid {
   display: grid;
@@ -251,6 +314,11 @@ input, select {
   font-size: 15px;
 }
 
+.expense-subcategory {
+  color: var(--muted);
+  font-weight: 400;
+}
+
 .expense-note {
   color: var(--muted);
   font-size: 13px;
@@ -262,6 +330,10 @@ input, select {
 .expense-amount {
   font-weight: 700;
   font-size: 15px;
+}
+
+.expense-amount.income {
+  color: var(--green);
 }
 
 /* Floating action button */
@@ -324,6 +396,32 @@ input, select {
   font-weight: 800;
   letter-spacing: -1px;
   margin: 6px 0 16px;
+}
+
+.amount-display.income {
+  color: var(--green);
+}
+
+.subcategory-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.subcategory-chip {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.subcategory-chip.selected {
+  border-color: var(--green);
+  background: var(--green-light);
+  color: var(--green);
 }
 
 /* Bank-terminal keypad */
@@ -499,6 +597,65 @@ input, select {
   font-size: 13px;
 }
 
+.row-sub-count {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.subcategory-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.subcategory-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 6px 6px 12px;
+  font-size: 13px;
+}
+
+.subcategory-remove {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.subcategory-remove:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.subcategory-empty {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 10px;
+}
+
+.subcategory-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.subcategory-add .note-input {
+  margin-bottom: 0;
+}
+
 .preview-chip {
   display: inline-flex;
   align-items: center;
@@ -517,11 +674,28 @@ input, select {
   color: var(--muted);
 }
 
+.icon-picker-groups {
+  max-height: 220px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+  padding-right: 2px;
+}
+
+.icon-group {
+  margin-bottom: 10px;
+}
+
+.icon-group-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .icon-picker {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
   gap: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 
 .icon-option {

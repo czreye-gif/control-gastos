@@ -2,12 +2,12 @@ import { useCategories } from '../contexts/CategoriesContext'
 import { formatDayLabel } from '../utils/dates'
 
 export default function ExpenseList({ expenses, onSelect }) {
-  const { getCategory } = useCategories()
+  const { getCategory, getSubcategory } = useCategories()
 
   if (expenses.length === 0) {
     return (
       <div className="empty-state">
-        <p>Aún no has registrado gastos.</p>
+        <p>Aún no has registrado movimientos.</p>
         <p>Toca el botón + para agregar el primero.</p>
       </div>
     )
@@ -21,10 +21,12 @@ export default function ExpenseList({ expenses, onSelect }) {
         <div key={day} className="day-group">
           <div className="day-header">
             <span>{formatDayLabel(day)}</span>
-            <span>{formatMoney(sum(items))}</span>
+            <span>{formatMoney(netSum(items))}</span>
           </div>
           {items.map((expense) => {
             const cat = getCategory(expense.category)
+            const sub = getSubcategory(expense.category, expense.subcategory)
+            const isIncome = expense.type === 'income'
             return (
               <button
                 key={expense.id}
@@ -35,10 +37,15 @@ export default function ExpenseList({ expenses, onSelect }) {
                   {cat.icon}
                 </span>
                 <span className="expense-info">
-                  <span className="expense-category">{cat.name}</span>
+                  <span className="expense-category">
+                    {cat.name}
+                    {sub && <span className="expense-subcategory"> · {sub.name}</span>}
+                  </span>
                   {expense.note && <span className="expense-note">{expense.note}</span>}
                 </span>
-                <span className="expense-amount">{formatMoney(expense.amount)}</span>
+                <span className={`expense-amount ${isIncome ? 'income' : ''}`}>
+                  {isIncome ? '+' : '-'}{formatMoney(expense.amount)}
+                </span>
               </button>
             )
           })}
@@ -57,8 +64,8 @@ function groupByDay(expenses) {
   return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
 }
 
-function sum(items) {
-  return items.reduce((acc, i) => acc + i.amount, 0)
+function netSum(items) {
+  return items.reduce((acc, i) => acc + (i.type === 'income' ? i.amount : -i.amount), 0)
 }
 
 export function formatMoney(value) {

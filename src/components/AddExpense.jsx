@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
+import { useAccounts } from '../utils/useAccounts'
 import { todayISO } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
 
@@ -8,6 +9,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
 
 export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
+  const { accounts } = useAccounts()
   const navigate = useNavigate()
   // El monto se maneja en centavos, como en las terminales bancarias:
   // cada dígito que tecleas se acomoda desde la derecha.
@@ -17,6 +19,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const [subcategory, setSubcategory] = useState(initial?.subcategory ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
+  const [account, setAccount] = useState(initial?.account ?? '')
 
   const amount = cents / 100
   const canSave = cents > 0 && category
@@ -46,7 +49,15 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
 
   const handleSave = () => {
     if (!canSave) return
-    onSave({ amount, type, category, subcategory: subcategory || null, note: note.trim(), date })
+    onSave({
+      amount,
+      type,
+      category,
+      subcategory: subcategory || null,
+      note: note.trim(),
+      date,
+      account: account || null,
+    })
   }
 
   const goToCategories = () => {
@@ -114,6 +125,24 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
                   onClick={() => setSubcategory(subcategory === s.id ? '' : s.id)}
                 >
                   {s.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {accounts.length > 0 && (
+          <>
+            <p className="picker-label">Cuenta (opcional)</p>
+            <div className="subcategory-picker">
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`subcategory-chip ${account === a.id ? 'selected' : ''}`}
+                  onClick={() => setAccount(account === a.id ? '' : a.id)}
+                >
+                  {a.icon} {a.name}
                 </button>
               ))}
             </div>

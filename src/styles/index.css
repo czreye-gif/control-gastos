@@ -1085,6 +1085,88 @@ input, select {
   background: #fff;
 }
 
+/* Cuentas */
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.account-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+  cursor: pointer;
+}
+
+.account-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.account-name {
+  font-weight: 600;
+}
+
+.account-balance {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.account-balance.negative {
+  color: var(--danger);
+}
+
+/* Tira de cuentas en Inicio */
+.account-strip {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+}
+
+.account-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.account-chip-name {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.account-chip-balance {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.account-chip-balance.negative {
+  color: var(--danger);
+}
+
 .total-card h2 {
   margin: 4px 0 0;
   font-size: 30px;

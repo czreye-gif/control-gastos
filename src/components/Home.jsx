@@ -14,6 +14,7 @@ import AddExpense from './AddExpense'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
 import { useBudgets } from '../utils/useBudgets'
+import { useAccounts, computeBalances } from '../utils/useAccounts'
 import { useCategories } from '../contexts/CategoriesContext'
 import {
   addDaysISO,
@@ -32,7 +33,10 @@ export default function Home() {
   const [editing, setEditing] = useState(null)
 
   const { budgets } = useBudgets()
+  const { accounts } = useAccounts()
   const { categories } = useCategories()
+
+  const accountBalances = useMemo(() => computeBalances(accounts, expenses), [accounts, expenses])
 
   const expensesOnly = useMemo(() => expenses.filter((e) => e.type !== 'income'), [expenses])
   const stats = useMemo(() => computeStats(expensesOnly), [expensesOnly])
@@ -78,6 +82,9 @@ export default function Home() {
       <div className="home-topbar">
         <h2>Mis finanzas</h2>
         <div className="home-topbar-actions">
+          <button className="icon-btn" onClick={() => navigate('/cuentas')} aria-label="Cuentas">
+            💳
+          </button>
           <button className="icon-btn" onClick={() => navigate('/recurrentes')} aria-label="Pagos recurrentes">
             🔁
           </button>
@@ -103,6 +110,29 @@ export default function Home() {
           </span>
         </div>
       </div>
+
+      {accountBalances.length > 0 && (
+        <>
+          <div className="section-row">
+            <h3 className="section-title">Cuentas</h3>
+            <button className="link-btn" onClick={() => navigate('/cuentas')}>
+              Gestionar ›
+            </button>
+          </div>
+          <div className="account-strip">
+            {accountBalances.map((a) => (
+              <button key={a.id} className="account-chip" onClick={() => navigate('/cuentas')}>
+                <span className="account-chip-name">
+                  {a.icon} {a.name}
+                </span>
+                <span className={`account-chip-balance ${a.balance < 0 ? 'negative' : ''}`}>
+                  {formatMoney(a.balance)}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       <h3 className="section-title">Gastos</h3>
       <div className="stat-grid">

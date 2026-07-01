@@ -44,6 +44,22 @@ export function CategoriesProvider({ children }) {
         await batch.commit()
         return // el onSnapshot volverá a dispararse ya con datos
       }
+      // Autorreparación: categorías creadas antes de que existiera el módulo
+      // de Ingresos no tienen `type`, así que no calzan en ningún filtro.
+      // Les asignamos 'expense' (eran todas de gasto en ese entonces).
+      const fixBatch = writeBatch(db)
+      let needsFix = false
+      snapshot.docs.forEach((d) => {
+        if (!d.data().type) {
+          needsFix = true
+          fixBatch.update(d.ref, { type: 'expense' })
+        }
+      })
+      if (needsFix) {
+        await fixBatch.commit()
+        return // el onSnapshot volverá a dispararse ya con datos corregidos
+      }
+
       setCategories(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
       setLoading(false)
     })

@@ -11,7 +11,10 @@ import {
 } from 'recharts'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
+import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
+import { useBudgets } from '../utils/useBudgets'
+import { useCategories } from '../contexts/CategoriesContext'
 import {
   addDaysISO,
   currentMonthISO,
@@ -28,9 +31,31 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
 
+  const { budgets } = useBudgets()
+  const { categories } = useCategories()
+
   const expensesOnly = useMemo(() => expenses.filter((e) => e.type !== 'income'), [expenses])
   const stats = useMemo(() => computeStats(expensesOnly), [expensesOnly])
   const balance = useMemo(() => computeBalance(expenses), [expenses])
+
+  // Presupuestos del mes con su gasto acumulado, ordenados por % consumido
+  // para que lo más urgente (excedido / por excederse) aparezca primero.
+  const budgetProgress = useMemo(() => {
+    const month = currentMonthISO()
+    const spentByCat = new Map()
+    for (const e of expensesOnly) {
+      if (monthOf(e.date) !== month) continue
+      spentByCat.set(e.category, (spentByCat.get(e.category) ?? 0) + e.amount)
+    }
+    return budgets
+      .map((b) => {
+        const category = categories.find((c) => c.id === b.category)
+        if (!category) return null
+        return { category, limit: b.amount, spent: spentByCat.get(b.category) ?? 0 }
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.spent / b.limit - a.spent / a.limit)
+  }, [budgets, categories, expensesOnly])
 
   const handleSave = async (data) => {
     if (editing) {
@@ -80,6 +105,30 @@ export default function Home() {
         <StatCard label="Semana" value={stats.week} prev={stats.lastWeek} hint="vs sem. pasada" />
         <StatCard label="Mes" value={stats.month} prev={stats.lastMonth} hint="vs mes pasado" />
       </div>
+
+      <div className="section-row">
+        <h3 className="section-title">Presupuestos</h3>
+        <button className="link-btn" onClick={() => navigate('/presupuestos')}>
+          Gestionar ›
+        </button>
+      </div>
+      {budgetProgress.length === 0 ? (
+        <button className="budget-cta" onClick={() => navigate('/presupuestos')}>
+          Define presupuestos por categoría para controlar tus gastos →
+        </button>
+      ) : (
+        <div className="budget-list">
+          {budgetProgress.slice(0, 3).map((b) => (
+            <BudgetBar
+              key={b.category.id}
+              category={b.category}
+              spent={b.spent}
+              limit={b.limit}
+              onClick={() => navigate('/presupuestos')}
+            />
+          ))}
+        </div>
+      )}
 
       <section className="chart-card">
         <h3>Últimos 7 días</h3>

@@ -5,6 +5,7 @@ import Login from './components/Login'
 import Home from './components/Home'
 import Movements from './components/Movements'
 import Reports from './components/Reports'
+import Budgets from './components/Budgets'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
 import { useOnlineStatus } from './utils/useOnlineStatus'
@@ -33,6 +34,7 @@ function AppShell() {
           <Route path="/" element={<Home />} />
           <Route path="/movimientos" element={<Movements />} />
           <Route path="/reportes" element={<Reports />} />
+          <Route path="/presupuestos" element={<Budgets />} />
           <Route path="/categorias" element={<Categories />} />
         </Routes>
         <NavBar />

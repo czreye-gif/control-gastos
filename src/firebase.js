@@ -1,6 +1,10 @@
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore'
 
 // Credenciales del proyecto "Control-Gastos" en Firebase Console.
 // Estas claves son seguras para apps web (no son secretas); la seguridad
@@ -19,4 +23,11 @@ const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
-export const db = getFirestore(app)
+
+// Caché local persistente: la app sigue leyendo y guardando datos aunque
+// no haya internet (IndexedDB del navegador), y Firestore sincroniza solo
+// en cuanto detecta conexión de nuevo. `persistentMultipleTabManager`
+// evita conflictos si el usuario abre la app en varias pestañas/dispositivos.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+})

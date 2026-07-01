@@ -6,9 +6,11 @@ import Home from './components/Home'
 import Reports from './components/Reports'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
+import { useOnlineStatus } from './utils/useOnlineStatus'
 
 function AppShell() {
   const { user, loading } = useAuth()
+  const online = useOnlineStatus()
 
   if (loading) {
     return <div className="splash">Cargando...</div>
@@ -21,6 +23,11 @@ function AppShell() {
   return (
     <CategoriesProvider>
       <div className="app-shell">
+        {!online && (
+          <div className="offline-banner">
+            Sin conexión — tus cambios se guardan en el dispositivo y se sincronizarán solos
+          </div>
+        )}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/reportes" element={<Reports />} />

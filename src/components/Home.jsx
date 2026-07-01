@@ -77,9 +77,14 @@ export default function Home() {
     <div className="page">
       <div className="home-topbar">
         <h2>Mis finanzas</h2>
-        <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
-          ⚙️
-        </button>
+        <div className="home-topbar-actions">
+          <button className="icon-btn" onClick={() => navigate('/recurrentes')} aria-label="Pagos recurrentes">
+            🔁
+          </button>
+          <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
+            ⚙️
+          </button>
+        </div>
       </div>
 
       <div className="balance-card">

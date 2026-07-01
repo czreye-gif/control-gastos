@@ -77,3 +77,22 @@ export function lastNMonths(n) {
   }
   return months
 }
+
+export function daysInMonth(isoMonth) {
+  const [y, m] = isoMonth.split('-').map(Number)
+  return new Date(y, m, 0).getDate()
+}
+
+// Fecha ISO de un día dentro del mes, acotando a la longitud real del mes
+// (p.ej. día 31 en febrero cae al 28/29).
+export function dateOfMonth(isoMonth, day) {
+  const d = Math.min(day, daysInMonth(isoMonth))
+  return `${isoMonth}-${String(d).padStart(2, '0')}`
+}
+
+export function nextMonth(isoMonth) {
+  const [y, m] = isoMonth.split('-').map(Number)
+  const d = new Date(y, m - 1, 1)
+  d.setMonth(d.getMonth() + 1)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}

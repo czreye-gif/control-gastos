@@ -133,6 +133,11 @@ input, select {
   font-size: 20px;
 }
 
+.home-topbar-actions {
+  display: flex;
+  gap: 8px;
+}
+
 .icon-btn {
   background: var(--card);
   border: 1px solid var(--border);
@@ -1022,6 +1027,62 @@ input, select {
   font-size: 22px;
   font-weight: 600;
   outline: none;
+}
+
+/* Pagos recurrentes */
+.recurring-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recurring-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+}
+
+.recurring-item.inactive {
+  opacity: 0.5;
+}
+
+.recurring-right {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.recurring-toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  padding: 2px;
+  display: flex;
+  transition: background 0.2s ease;
+}
+
+.recurring-toggle.on {
+  background: var(--green);
+  border-color: var(--green);
+  justify-content: flex-end;
+}
+
+.recurring-knob {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
 }
 
 .total-card h2 {

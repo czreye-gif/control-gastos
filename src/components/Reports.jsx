@@ -4,6 +4,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  Legend,
   Pie,
   PieChart,
   ResponsiveContainer,
@@ -48,6 +49,25 @@ export default function Reports() {
     }))
   }, [typeExpenses, months])
 
+  // --- Balance (ingresos vs gastos) ---
+  const incomeMovs = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === 'income'), [expenses])
+  const spendMovs = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === 'expense'), [expenses])
+
+  const sumInMonth = (movs, m) =>
+    movs.filter((e) => monthOf(e.date) === m).reduce((acc, e) => acc + e.amount, 0)
+
+  const monthIncome = sumInMonth(incomeMovs, month)
+  const monthExpense = sumInMonth(spendMovs, month)
+  const saldo = monthIncome - monthExpense
+
+  const balanceByMonth = useMemo(() => {
+    return months.map((m) => ({
+      month: formatMonthLabel(m).split(' ')[0].slice(0, 3),
+      ingresos: sumInMonth(incomeMovs, m),
+      gastos: sumInMonth(spendMovs, m),
+    }))
+  }, [incomeMovs, spendMovs, months])
+
   if (loading) return <p className="loading-text">Cargando...</p>
 
   return (
@@ -78,14 +98,62 @@ export default function Reports() {
         >
           Ingresos
         </button>
+        <button
+          type="button"
+          className={`type-toggle-btn ${type === 'balance' ? 'selected' : ''}`}
+          onClick={() => setType('balance')}
+        >
+          Balance
+        </button>
       </div>
 
-      <div className="total-card">
-        <p>Total de {formatMonthLabel(month)}</p>
-        <h2>{formatMoney(total)}</h2>
-      </div>
+      {type !== 'balance' && (
+        <div className="total-card">
+          <p>Total de {formatMonthLabel(month)}</p>
+          <h2>{formatMoney(total)}</h2>
+        </div>
+      )}
 
-      {byCategory.length === 0 ? (
+      {type === 'balance' ? (
+        <>
+          <div className={`total-card ${saldo < 0 ? 'negative' : ''}`}>
+            <p>Saldo de {formatMonthLabel(month)}</p>
+            <h2>{formatMoney(saldo)}</h2>
+          </div>
+
+          <div className="balance-breakdown">
+            <div className="balance-item">
+              <span className="legend-dot" style={{ background: '#22c55e' }} />
+              <span>Ingresos</span>
+              <span className="legend-amount">{formatMoney(monthIncome)}</span>
+            </div>
+            <div className="balance-item">
+              <span className="legend-dot" style={{ background: '#f87171' }} />
+              <span>Gastos</span>
+              <span className="legend-amount">{formatMoney(monthExpense)}</span>
+            </div>
+          </div>
+
+          <section className="chart-card">
+            <h3>Ingresos vs gastos (últimos 6 meses)</h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={balanceByMonth}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#2a2e37" />
+                <XAxis dataKey="month" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis hide />
+                <Tooltip
+                  cursor={{ fill: '#ffffff10' }}
+                  contentStyle={{ background: '#1a1d24', border: '1px solid #2a2e37', borderRadius: 8, color: '#e5e7eb' }}
+                  formatter={(value) => formatMoney(value)}
+                />
+                <Legend wrapperStyle={{ fontSize: 13 }} />
+                <Bar name="Ingresos" dataKey="ingresos" fill="#22c55e" radius={[6, 6, 0, 0]} />
+                <Bar name="Gastos" dataKey="gastos" fill="#f87171" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </section>
+        </>
+      ) : byCategory.length === 0 ? (
         <p className="empty-state">
           {type === 'income' ? 'No hay ingresos registrados este mes.' : 'No hay gastos registrados este mes.'}
         </p>

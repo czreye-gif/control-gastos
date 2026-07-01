@@ -771,9 +771,109 @@ input, select {
   margin-bottom: 16px;
 }
 
+.total-card.negative {
+  background: var(--danger);
+  color: #2a0a0a;
+}
+
 .total-card p {
   margin: 0;
   opacity: 0.85;
+}
+
+.balance-breakdown {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.balance-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 14px;
+}
+
+.balance-item .legend-amount {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+/* Movimientos: búsqueda y filtros */
+.search-input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.filter-row select {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+}
+
+.results-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.income-text {
+  color: var(--green);
+}
+
+.expense-text {
+  color: var(--danger);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--green);
+  font-weight: 600;
+  font-size: 13px;
+  padding: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.load-more-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.load-more-btn:hover {
+  background: var(--card-2);
 }
 
 .total-card h2 {

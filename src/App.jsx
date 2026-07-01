@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CategoriesProvider } from './contexts/CategoriesContext'
 import Login from './components/Login'
 import Home from './components/Home'
+import Movements from './components/Movements'
 import Reports from './components/Reports'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
@@ -30,6 +31,7 @@ function AppShell() {
         )}
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/movimientos" element={<Movements />} />
           <Route path="/reportes" element={<Reports />} />
           <Route path="/categorias" element={<Categories />} />
         </Routes>

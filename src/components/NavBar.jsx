@@ -10,6 +10,10 @@ export default function NavBar() {
         <span>🏠</span>
         <span>Inicio</span>
       </NavLink>
+      <NavLink to="/movimientos" className="nav-item">
+        <span>📋</span>
+        <span>Movimientos</span>
+      </NavLink>
       <NavLink to="/reportes" className="nav-item">
         <span>📊</span>
         <span>Reportes</span>

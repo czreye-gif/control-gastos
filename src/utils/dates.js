@@ -96,3 +96,17 @@ export function nextMonth(isoMonth) {
   d.setMonth(d.getMonth() + 1)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
+
+export function addMonthsISO(iso, n) {
+  const d = new Date(iso + 'T00:00:00')
+  d.setMonth(d.getMonth() + n)
+  return toISO(d)
+}
+
+// Fecha de la aportación número `index` (0-based) de una tanda, según su
+// frecuencia, partiendo de la fecha de inicio.
+export function periodDate(startIso, index, frequency) {
+  if (frequency === 'mensual') return addMonthsISO(startIso, index)
+  const days = frequency === 'quincenal' ? 14 : 7
+  return addDaysISO(startIso, index * days)
+}

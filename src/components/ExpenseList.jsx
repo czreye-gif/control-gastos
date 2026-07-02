@@ -27,21 +27,32 @@ export default function ExpenseList({ expenses, onSelect }) {
             const cat = getCategory(expense.category)
             const sub = getSubcategory(expense.category, expense.subcategory)
             const isIncome = expense.type === 'income'
+            const isTransfer = expense.transfer
             return (
               <button
                 key={expense.id}
                 className="expense-item"
-                onClick={() => onSelect(expense)}
+                onClick={() => !isTransfer && onSelect(expense)}
               >
-                <span className="expense-icon" style={{ background: cat.color + '22', color: cat.color }}>
-                  {cat.icon}
-                </span>
+                {isTransfer ? (
+                  <span className="expense-icon" style={{ background: '#64748b22', color: '#94a3b8' }}>
+                    🔄
+                  </span>
+                ) : (
+                  <span className="expense-icon" style={{ background: cat.color + '22', color: cat.color }}>
+                    {cat.icon}
+                  </span>
+                )}
                 <span className="expense-info">
                   <span className="expense-category">
-                    {cat.name}
-                    {sub && <span className="expense-subcategory"> · {sub.name}</span>}
+                    {isTransfer ? expense.note || 'Traspaso' : cat.name}
+                    {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
                   </span>
-                  {expense.note && <span className="expense-note">{expense.note}</span>}
+                  {isTransfer ? (
+                    <span className="expense-note">Traspaso</span>
+                  ) : (
+                    expense.note && <span className="expense-note">{expense.note}</span>
+                  )}
                 </span>
                 <span className={`expense-amount ${isIncome ? 'income' : ''}`}>
                   {isIncome ? '+' : '-'}{formatMoney(expense.amount)}

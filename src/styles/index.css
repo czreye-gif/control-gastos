@@ -1248,6 +1248,75 @@ input, select {
   color: var(--danger);
 }
 
+/* Tandas */
+.tanda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tanda-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.tanda-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.tanda-name {
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--text);
+}
+
+.tanda-meta {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.tanda-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text);
+  margin-top: 8px;
+}
+
+.tanda-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+  margin: 12px 0;
+}
+
+.tanda-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.tanda-fields {
+  display: flex;
+  gap: 10px;
+}
+
+.tanda-fields > div {
+  flex: 1;
+  min-width: 0;
+}
+
 .total-card h2 {
   margin: 4px 0 0;
   font-size: 30px;

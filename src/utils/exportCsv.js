@@ -20,10 +20,11 @@ export function movementsToCsv(rows, { categoryName, subcategoryName, accountNam
   for (const e of sorted) {
     const isIncome = (e.type ?? 'expense') === 'income'
     const signed = isIncome ? e.amount : -e.amount
+    const tipo = e.transfer ? 'Traspaso' : isIncome ? 'Ingreso' : 'Gasto'
     lines.push(
       [
         e.date,
-        isIncome ? 'Ingreso' : 'Gasto',
+        tipo,
         categoryName(e.category),
         subcategoryName(e.category, e.subcategory),
         accountName(e.account),

@@ -55,7 +55,7 @@ export default function Budgets() {
   const spentByCat = useMemo(() => {
     const map = new Map()
     for (const e of expenses) {
-      if ((e.type ?? 'expense') !== 'expense') continue
+      if ((e.type ?? 'expense') !== 'expense' || e.transfer) continue
       if (monthOf(e.date) !== month) continue
       map.set(e.category, (map.get(e.category) ?? 0) + e.amount)
     }

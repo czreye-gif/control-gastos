@@ -24,7 +24,10 @@ export default function Reports() {
   const [type, setType] = useState('expense')
   const months = useMemo(() => lastNMonths(6), [])
 
-  const typeExpenses = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === type), [expenses, type])
+  const typeExpenses = useMemo(
+    () => expenses.filter((e) => (e.type ?? 'expense') === type && !e.transfer),
+    [expenses, type]
+  )
   const typeCategories = useMemo(() => categories.filter((c) => c.type === type), [categories, type])
 
   const monthExpenses = useMemo(
@@ -50,8 +53,14 @@ export default function Reports() {
   }, [typeExpenses, months])
 
   // --- Balance (ingresos vs gastos) ---
-  const incomeMovs = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === 'income'), [expenses])
-  const spendMovs = useMemo(() => expenses.filter((e) => (e.type ?? 'expense') === 'expense'), [expenses])
+  const incomeMovs = useMemo(
+    () => expenses.filter((e) => (e.type ?? 'expense') === 'income' && !e.transfer),
+    [expenses]
+  )
+  const spendMovs = useMemo(
+    () => expenses.filter((e) => (e.type ?? 'expense') === 'expense' && !e.transfer),
+    [expenses]
+  )
 
   const sumInMonth = (movs, m) =>
     movs.filter((e) => monthOf(e.date) === m).reduce((acc, e) => acc + e.amount, 0)

@@ -38,7 +38,10 @@ export default function Home() {
 
   const accountBalances = useMemo(() => computeBalances(accounts, expenses), [accounts, expenses])
 
-  const expensesOnly = useMemo(() => expenses.filter((e) => e.type !== 'income'), [expenses])
+  const expensesOnly = useMemo(
+    () => expenses.filter((e) => (e.type ?? 'expense') === 'expense' && !e.transfer),
+    [expenses]
+  )
   const stats = useMemo(() => computeStats(expensesOnly), [expensesOnly])
   const balance = useMemo(() => computeBalance(expenses), [expenses])
 
@@ -82,6 +85,9 @@ export default function Home() {
       <div className="home-topbar">
         <h2>Mis finanzas</h2>
         <div className="home-topbar-actions">
+          <button className="icon-btn" onClick={() => navigate('/tandas')} aria-label="Tandas">
+            🤝
+          </button>
           <button className="icon-btn" onClick={() => navigate('/cuentas')} aria-label="Cuentas">
             💳
           </button>
@@ -266,7 +272,7 @@ function StatCard({ label, value, prev, hint }) {
 
 function computeBalance(expenses) {
   const month = currentMonthISO()
-  const monthItems = expenses.filter((e) => monthOf(e.date) === month)
+  const monthItems = expenses.filter((e) => monthOf(e.date) === month && !e.transfer)
   const income = monthItems.filter((e) => e.type === 'income').reduce((a, e) => a + e.amount, 0)
   const expense = monthItems.filter((e) => e.type !== 'income').reduce((a, e) => a + e.amount, 0)
   return { income, expense, balance: income - expense }

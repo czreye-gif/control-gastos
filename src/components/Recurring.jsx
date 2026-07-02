@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
-import { useRecurring } from '../utils/useRecurring'
+import { useRecurring, dueOccurrences } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
@@ -304,7 +304,12 @@ export function RecurringAlerts() {
   const { recurring, updateRecurring } = useRecurring()
   const { getCategory } = useCategories()
   const today = todayISO()
+  const cur = currentMonthISO()
   const [closed, setClosed] = useState(() => localStorage.getItem('recurAlertDate') === today)
+
+  // Si hay pagos ya vencidos, primero se confirman (RecurringConfirm);
+  // este aviso previo se guarda para cuando no haya nada pendiente.
+  const hasDue = recurring.some((t) => t.active !== false && dueOccurrences(t, cur, today).length > 0)
 
   const upcoming = useMemo(() => {
     if (closed) return []
@@ -315,11 +320,11 @@ export function RecurringAlerts() {
         const days = Math.round((new Date(date + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000)
         return { t, date, days }
       })
-      .filter((x) => x.days >= 0 && x.days <= 5)
+      .filter((x) => x.days >= 1 && x.days <= 5)
       .sort((a, b) => a.days - b.days)
   }, [recurring, today, closed])
 
-  if (closed || upcoming.length === 0) return null
+  if (closed || hasDue || upcoming.length === 0) return null
 
   const dismiss = () => {
     localStorage.setItem('recurAlertDate', today)
@@ -353,6 +358,104 @@ export function RecurringAlerts() {
         <div className="confirm-actions">
           <button className="btn-primary" onClick={dismiss}>
             Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Al abrir la app, si hay pagos recurrentes vencidos, pide confirmar con qué
+// cuenta se pagó cada uno (con la cuenta original preseleccionada y opción de
+// cambiarla) antes de registrarlos.
+export function RecurringConfirm() {
+  const { recurring, commitDue } = useRecurring()
+  const { getCategory } = useCategories()
+  const { accounts } = useAccounts()
+  const payAccounts = accounts.filter((a) => !a.piggy)
+  const today = todayISO()
+  const cur = currentMonthISO()
+  const processing = useRef(new Set())
+  const [choices, setChoices] = useState({})
+  const [closed, setClosed] = useState(false)
+
+  const pending = useMemo(
+    () =>
+      recurring
+        .filter((t) => t.active !== false && !processing.current.has(t.id))
+        .map((t) => ({ t, occ: dueOccurrences(t, cur, today) }))
+        .filter((x) => x.occ.length > 0),
+    [recurring, cur, today]
+  )
+
+  // Sin cuentas dadas de alta no hay nada que confirmar: se registra solo.
+  useEffect(() => {
+    if (payAccounts.length > 0) return
+    pending.forEach(({ t }) => {
+      if (!processing.current.has(t.id)) {
+        processing.current.add(t.id)
+        commitDue(t, t.account || null)
+      }
+    })
+  }, [pending, payAccounts, commitDue])
+
+  if (payAccounts.length === 0 || pending.length === 0 || closed) return null
+
+  const accountFor = (t) => (t.id in choices ? choices[t.id] : t.account || '')
+
+  const confirmAll = async () => {
+    const items = pending
+    items.forEach(({ t }) => processing.current.add(t.id))
+    for (const { t } of items) {
+      await commitDue(t, accountFor(t) || null)
+    }
+  }
+
+  return (
+    <div className="confirm-backdrop">
+      <div className="confirm-dialog">
+        <h3>✅ Confirma tus pagos recurrentes</h3>
+        <p>Estos pagos se cargaron. ¿Con qué cuenta los pagaste? Cámbiala si fue desde otra.</p>
+        <div className="alert-list">
+          {pending.map(({ t, occ }) => (
+            <div className="rc-item" key={t.id}>
+              <div className="alert-name">
+                {getCategory(t.category).icon} {getCategory(t.category).name}
+                {t.note ? ` · ${t.note}` : ''}
+              </div>
+              <div className="alert-sub">
+                {formatMoney(t.amount)}
+                {occ.length > 1 ? ` × ${occ.length}` : ''} · {formatDayLabel(occ[occ.length - 1].date)}
+              </div>
+              <div className="rc-accounts">
+                <button
+                  type="button"
+                  className={`subcategory-chip ${!accountFor(t) ? 'selected' : ''}`}
+                  onClick={() => setChoices((c) => ({ ...c, [t.id]: '' }))}
+                >
+                  Sin cuenta
+                </button>
+                {payAccounts.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    className={`subcategory-chip ${accountFor(t) === a.id ? 'selected' : ''}`}
+                    onClick={() => setChoices((c) => ({ ...c, [t.id]: a.id }))}
+                  >
+                    {a.icon} {a.name}
+                    {a.id === t.account ? ' ✓' : ''}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="confirm-actions">
+          <button className="btn-ghost" onClick={() => setClosed(true)}>
+            Ahora no
+          </button>
+          <button className="btn-primary" onClick={confirmAll}>
+            Confirmar y registrar
           </button>
         </div>
       </div>

@@ -629,6 +629,25 @@ input, select {
   flex-shrink: 0;
 }
 
+/* Item de confirmación de pago recurrente */
+.rc-item {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 12px;
+}
+
+.rc-accounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.rc-accounts .subcategory-chip {
+  margin-bottom: 0;
+}
+
 .btn-ghost {
   flex: 1;
   background: var(--card-2);

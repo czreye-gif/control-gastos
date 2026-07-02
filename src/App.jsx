@@ -7,18 +7,16 @@ import Home from './components/Home'
 import Movements from './components/Movements'
 import Reports from './components/Reports'
 import Budgets from './components/Budgets'
-import Recurring, { RecurringAlerts } from './components/Recurring'
+import Recurring, { RecurringAlerts, RecurringConfirm } from './components/Recurring'
 import Accounts from './components/Accounts'
 import Ahorros from './components/Ahorros'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
 import { useOnlineStatus } from './utils/useOnlineStatus'
-import { useRecurringGenerator } from './utils/useRecurring'
 
 function AppShell() {
   const { user, loading } = useAuth()
   const online = useOnlineStatus()
-  useRecurringGenerator()
 
   if (loading) {
     return <div className="splash">Cargando...</div>
@@ -48,6 +46,7 @@ function AppShell() {
           <Route path="/categorias" element={<Categories />} />
         </Routes>
         <NavBar />
+        <RecurringConfirm />
         <RecurringAlerts />
       </div>
     </CategoriesProvider>

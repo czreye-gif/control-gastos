@@ -1374,6 +1374,72 @@ input, select {
   gap: 10px;
 }
 
+.tanda-card.my-turn {
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green) inset;
+}
+
+.tanda-turn-banner {
+  background: var(--green-light);
+  color: var(--green);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.tanda-progress-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.tanda-dots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.tanda-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+}
+
+.tanda-dot.done {
+  background: var(--green);
+  border-color: var(--green);
+}
+
+.tanda-net {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tanda-undo {
+  display: flex;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.register-amount {
+  font-size: 26px;
+  font-weight: 700;
+  text-align: center;
+  margin: 8px 0 4px;
+}
+
+.register-account {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .tanda-fields {
   display: flex;
   gap: 10px;

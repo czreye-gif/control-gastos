@@ -15,14 +15,13 @@ import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
 import { useBudgets } from '../utils/useBudgets'
 import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
-import { useTandas } from '../utils/useTandas'
+import { useTandas, tandaDerived } from '../utils/useTandas'
 import { useCategories } from '../contexts/CategoriesContext'
 import {
   addDaysISO,
   currentMonthISO,
   formatDayLabel,
   monthOf,
-  periodDate,
   prevMonthISO,
   shortDayName,
   startOfWeekISO,
@@ -44,8 +43,8 @@ export default function Home() {
   const tandaSummary = useMemo(
     () =>
       tandas
-        .filter((t) => (t.paidCount ?? 0) < t.totalCount)
-        .map((t) => ({ tanda: t, nextDate: periodDate(t.startDate, t.paidCount ?? 0, t.frequency) }))
+        .map((t) => ({ tanda: t, ...tandaDerived(t) }))
+        .filter((x) => !x.done && x.nextDate)
         .sort((a, b) => (a.nextDate < b.nextDate ? -1 : 1)),
     [tandas]
   )

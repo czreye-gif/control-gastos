@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
-import { useTandas } from '../utils/useTandas'
+import { useTandas, tandaDerived } from '../utils/useTandas'
 import { useAccounts } from '../utils/useAccounts'
 import { useConfirm } from '../contexts/ConfirmContext'
-import { formatDayLabel, periodDate, todayISO } from '../utils/dates'
+import { formatDayLabel, todayISO } from '../utils/dates'
 
 const FREQUENCIES = [
   { id: 'semanal', label: 'Semanal', unit: 'semana' },
@@ -15,8 +15,17 @@ const FREQUENCIES = [
 const freqUnit = (id) => FREQUENCIES.find((f) => f.id === id)?.unit ?? 'periodo'
 
 export default function Tandas() {
-  const { tandas, loading, addTanda, updateTanda, deleteTanda, registerContribution, registerPayout } =
-    useTandas()
+  const {
+    tandas,
+    loading,
+    addTanda,
+    updateTanda,
+    deleteTanda,
+    registerContribution,
+    undoContribution,
+    registerPayout,
+    undoPayout,
+  } = useTandas()
   const { accounts } = useAccounts()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | tanda
@@ -62,8 +71,10 @@ export default function Tandas() {
               tanda={t}
               accounts={accounts}
               onEdit={() => setEditing(t)}
-              onContribute={() => registerContribution(t)}
-              onPayout={() => registerPayout(t)}
+              onContribute={(date) => registerContribution(t, date)}
+              onUndoContribute={() => undoContribution(t)}
+              onPayout={(date) => registerPayout(t, date)}
+              onUndoPayout={() => undoPayout(t)}
             />
           ))}
         </div>
@@ -86,40 +97,33 @@ export default function Tandas() {
   )
 }
 
-function TandaCard({ tanda, accounts, onEdit, onContribute, onPayout }) {
+function TandaCard({ tanda, accounts, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
   const confirm = useConfirm()
-  const paid = tanda.paidCount ?? 0
-  const pct = Math.min((paid / tanda.totalCount) * 100, 100)
-  const contributed = tanda.amount * paid
-  const commitment = tanda.amount * tanda.totalCount
-  const pot = tanda.amount * tanda.totalCount
-  const done = paid >= tanda.totalCount
-  const nextDate = done ? null : periodDate(tanda.startDate, paid, tanda.frequency)
-  const payoutDate = periodDate(tanda.startDate, tanda.myNumber - 1, tanda.frequency)
+  const [sheet, setSheet] = useState(null) // null | 'contribute' | 'payout'
+  const d = tandaDerived(tanda)
   const account = tanda.account ? accounts.find((a) => a.id === tanda.account) : null
+  const isMyTurn = d.myTurnReached && !tanda.payoutReceived
 
-  const askContribute = async () => {
+  const askUndoContribute = async () => {
     const ok = await confirm({
-      title: 'Registrar aportación',
-      message: `Se apartarán ${formatMoney(tanda.amount)}${account ? ` de ${account.name}` : ''}.`,
-      confirmText: 'Registrar',
-      danger: false,
+      title: 'Deshacer aportación',
+      message: 'Se elimina la última aportación registrada y su traspaso.',
+      confirmText: 'Deshacer',
     })
-    if (ok) onContribute()
+    if (ok) onUndoContribute()
   }
 
-  const askPayout = async () => {
+  const askUndoPayout = async () => {
     const ok = await confirm({
-      title: 'Registrar cobro',
-      message: `Recibirás el pozo de ${formatMoney(pot)}${account ? ` en ${account.name}` : ''}.`,
-      confirmText: 'Cobrar',
-      danger: false,
+      title: 'Deshacer cobro',
+      message: 'Se elimina el cobro del pozo y su traspaso.',
+      confirmText: 'Deshacer',
     })
-    if (ok) onPayout()
+    if (ok) onUndoPayout()
   }
 
   return (
-    <div className="tanda-card">
+    <div className={`tanda-card ${isMyTurn ? 'my-turn' : ''}`}>
       <button className="tanda-head" onClick={onEdit}>
         <span className="tanda-name">{tanda.name}</span>
         <span className="tanda-meta">
@@ -128,39 +132,124 @@ function TandaCard({ tanda, accounts, onEdit, onContribute, onPayout }) {
         </span>
       </button>
 
-      <div className="budget-track">
-        <div className="budget-fill ok" style={{ width: `${pct}%` }} />
+      {isMyTurn && (
+        <div className="tanda-turn-banner">🎉 ¡Es tu turno! Cobra tu pozo de {formatMoney(d.pot)}</div>
+      )}
+
+      <div className="tanda-progress-label">
+        {d.done ? 'Aportaciones completadas ✓' : `Vas ${d.paid} de ${d.totalContributions} aportaciones`}
       </div>
-      <div className="tanda-stats">
-        <span>
-          Aportado {formatMoney(contributed)} <span className="budget-bar-limit">/ {formatMoney(commitment)}</span>
-        </span>
-        <span>
-          {paid}/{tanda.totalCount}
-        </span>
+      <div className="tanda-dots">
+        {Array.from({ length: d.totalContributions }).map((_, i) => (
+          <span key={i} className={`tanda-dot ${i < d.paid ? 'done' : ''}`} />
+        ))}
       </div>
 
       <div className="tanda-info">
-        {nextDate && <span>Próxima aportación: {formatDayLabel(nextDate)}</span>}
-        {done && <span>Aportaciones completadas ✓</span>}
+        {d.nextDate && (
+          <span>
+            Próxima aportación: <strong>{formatDayLabel(d.nextDate)}</strong>
+          </span>
+        )}
         <span>
           {tanda.payoutReceived
             ? 'Pozo cobrado ✓'
-            : `Cobras el ${formatDayLabel(payoutDate)}: ${formatMoney(pot)}`}
+            : `Cobras el ${formatDayLabel(d.payoutDate)}: ${formatMoney(d.pot)}`}
+        </span>
+        <span className="tanda-net">
+          Das {formatMoney(d.commitment)} en total · recibes {formatMoney(d.pot)} (neto $0)
         </span>
       </div>
 
       <div className="tanda-actions">
-        {!done && (
-          <button className="btn-primary" onClick={askContribute}>
+        {!d.done && (
+          <button className="btn-primary" onClick={() => setSheet('contribute')}>
             Registrar aportación
           </button>
         )}
         {!tanda.payoutReceived && (
-          <button className="btn-ghost" onClick={askPayout}>
+          <button className={isMyTurn ? 'btn-primary' : 'btn-ghost'} onClick={() => setSheet('payout')}>
             Cobrar pozo
           </button>
         )}
+      </div>
+
+      {(d.paid > 0 || tanda.payoutReceived) && (
+        <div className="tanda-undo">
+          {d.paid > 0 && (
+            <button className="link-btn" onClick={askUndoContribute}>
+              Deshacer aportación
+            </button>
+          )}
+          {tanda.payoutReceived && (
+            <button className="link-btn" onClick={askUndoPayout}>
+              Deshacer cobro
+            </button>
+          )}
+        </div>
+      )}
+
+      {sheet === 'contribute' && (
+        <RegisterSheet
+          title="Registrar aportación"
+          amount={tanda.amount}
+          defaultDate={d.nextDate ?? todayISO()}
+          accountName={account?.name}
+          confirmText="Registrar"
+          onConfirm={(date) => {
+            onContribute(date)
+            setSheet(null)
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'payout' && (
+        <RegisterSheet
+          title="Registrar cobro del pozo"
+          amount={d.pot}
+          defaultDate={d.payoutDate <= todayISO() ? d.payoutDate : todayISO()}
+          accountName={account?.name}
+          confirmText="Cobrar"
+          onConfirm={(date) => {
+            onPayout(date)
+            setSheet(null)
+          }}
+          onClose={() => setSheet(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Hojita para registrar aportación/cobro con fecha ajustable.
+function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, onConfirm, onClose }) {
+  const [date, setDate] = useState(defaultDate)
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <h2>{title}</h2>
+
+        <div className="register-amount">
+          {formatMoney(amount)}
+          {accountName && <span className="register-account"> · {accountName}</span>}
+        </div>
+
+        <p className="picker-label">Fecha</p>
+        <input
+          className="date-input"
+          type="date"
+          value={date}
+          max={todayISO()}
+          onChange={(e) => setDate(e.target.value)}
+        />
+
+        <div className="sheet-actions">
+          <button className="btn-primary" disabled={!date} onClick={() => onConfirm(date)}>
+            {confirmText}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -175,6 +264,7 @@ function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const [myNumber, setMyNumber] = useState(initial ? String(initial.myNumber) : '')
   const [startDate, setStartDate] = useState(initial?.startDate ?? todayISO())
   const [account, setAccount] = useState(initial?.account ?? '')
+  const [paysOnOwnTurn, setPaysOnOwnTurn] = useState(initial ? initial.paysOnOwnTurn !== false : true)
 
   const amountNum = Number(amount)
   const totalNum = Number(totalCount)
@@ -198,6 +288,7 @@ function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
       myNumber: myNum,
       startDate,
       account: account || null,
+      paysOnOwnTurn,
     })
   }
 
@@ -271,6 +362,29 @@ function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
             />
           </div>
         </div>
+
+        <p className="picker-label">El día que te toca cobrar…</p>
+        <div className="type-toggle">
+          <button
+            type="button"
+            className={`type-toggle-btn ${paysOnOwnTurn ? 'selected' : ''}`}
+            onClick={() => setPaysOnOwnTurn(true)}
+          >
+            También aporto
+          </button>
+          <button
+            type="button"
+            className={`type-toggle-btn ${!paysOnOwnTurn ? 'selected' : ''}`}
+            onClick={() => setPaysOnOwnTurn(false)}
+          >
+            No aporto ese día
+          </button>
+        </div>
+        <p className="piggy-hint">
+          {paysOnOwnTurn
+            ? 'Estilo tanda de 10: aportas en todos los periodos, incluido tu turno.'
+            : 'Estilo tanda de 11: no aportas el periodo que cobras (una aportación menos).'}
+        </p>
 
         <p className="picker-label">Fecha de la primera aportación</p>
         <input

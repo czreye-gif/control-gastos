@@ -38,7 +38,7 @@ export function useRecurring() {
     return unsubscribe
   }, [user])
 
-  const addRecurring = ({ amount, type, category, subcategory, note, dayOfMonth }) => {
+  const addRecurring = ({ amount, type, category, subcategory, note, dayOfMonth, account }) => {
     const ref = collection(db, 'users', user.uid, 'recurring')
     return addDoc(ref, {
       amount,
@@ -47,6 +47,7 @@ export function useRecurring() {
       subcategory: subcategory || null,
       note: note || '',
       dayOfMonth,
+      account: account || null,
       active: true,
       startMonth: currentMonthISO(),
       lastGenerated: null,
@@ -62,7 +63,11 @@ export function useRecurring() {
     return deleteDoc(doc(db, 'users', user.uid, 'recurring', id))
   }
 
-  return { recurring, loading, addRecurring, updateRecurring, deleteRecurring }
+  // Genera de inmediato los movimientos vencidos de una plantilla (p.ej. al
+  // crearla si su día ya pasó este mes). `t` debe incluir su id.
+  const generateNow = (t) => generateOccurrences(user.uid, t)
+
+  return { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow }
 }
 
 // Meses "vencidos" de una plantilla: desde su inicio (o el último generado)
@@ -82,6 +87,31 @@ function dueOccurrences(t, curMonth, today) {
   return occ
 }
 
+// Crea los movimientos vencidos de una plantilla y actualiza lastGenerated.
+async function generateOccurrences(uid, t) {
+  if (t.active === false) return
+  const occ = dueOccurrences(t, currentMonthISO(), todayISO())
+  if (occ.length === 0) return
+
+  const expRef = collection(db, 'users', uid, 'expenses')
+  for (const { date } of occ) {
+    await addDoc(expRef, {
+      amount: t.amount,
+      type: t.type || 'expense',
+      category: t.category,
+      subcategory: t.subcategory || null,
+      note: t.note || '',
+      date,
+      account: t.account || null,
+      recurringId: t.id,
+      createdAt: serverTimestamp(),
+    })
+  }
+  await updateDoc(doc(db, 'users', uid, 'recurring', t.id), {
+    lastGenerated: occ[occ.length - 1].month,
+  })
+}
+
 // Genera los movimientos recurrentes pendientes una vez por sesión/usuario.
 // Se lee de una sola vez (getDocs) para no re-disparar con cada cambio.
 export function useRecurringGenerator() {
@@ -96,29 +126,8 @@ export function useRecurringGenerator() {
     const run = async () => {
       const recRef = collection(db, 'users', user.uid, 'recurring')
       const snap = await getDocs(recRef)
-      const today = todayISO()
-      const curMonth = currentMonthISO()
-
       for (const d of snap.docs) {
-        const t = d.data()
-        if (t.active === false) continue
-        const occ = dueOccurrences(t, curMonth, today)
-        if (occ.length === 0) continue
-
-        const expRef = collection(db, 'users', user.uid, 'expenses')
-        for (const { date } of occ) {
-          await addDoc(expRef, {
-            amount: t.amount,
-            type: t.type || 'expense',
-            category: t.category,
-            subcategory: t.subcategory || null,
-            note: t.note || '',
-            date,
-            recurringId: d.id,
-            createdAt: serverTimestamp(),
-          })
-        }
-        await updateDoc(d.ref, { lastGenerated: occ[occ.length - 1].month })
+        await generateOccurrences(user.uid, { id: d.id, ...d.data() })
       }
     }
 

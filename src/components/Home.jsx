@@ -15,11 +15,14 @@ import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
 import { useBudgets } from '../utils/useBudgets'
 import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
+import { useTandas } from '../utils/useTandas'
 import { useCategories } from '../contexts/CategoriesContext'
 import {
   addDaysISO,
   currentMonthISO,
+  formatDayLabel,
   monthOf,
+  periodDate,
   prevMonthISO,
   shortDayName,
   startOfWeekISO,
@@ -34,7 +37,18 @@ export default function Home() {
 
   const { budgets } = useBudgets()
   const { accounts } = useAccounts()
+  const { tandas } = useTandas()
   const { categories } = useCategories()
+
+  // Tandas con aportación pendiente, ordenadas por la próxima fecha.
+  const tandaSummary = useMemo(
+    () =>
+      tandas
+        .filter((t) => (t.paidCount ?? 0) < t.totalCount)
+        .map((t) => ({ tanda: t, nextDate: periodDate(t.startDate, t.paidCount ?? 0, t.frequency) }))
+        .sort((a, b) => (a.nextDate < b.nextDate ? -1 : 1)),
+    [tandas]
+  )
 
   const accountBalances = useMemo(() => computeBalances(accounts, expenses), [accounts, expenses])
 
@@ -176,6 +190,32 @@ export default function Home() {
             />
           ))}
         </div>
+      )}
+
+      {tandaSummary.length > 0 && (
+        <>
+          <div className="section-row">
+            <h3 className="section-title">Tandas</h3>
+            <button className="link-btn" onClick={() => navigate('/tandas')}>
+              Gestionar ›
+            </button>
+          </div>
+          <div className="tanda-summary-list">
+            {tandaSummary.slice(0, 3).map(({ tanda, nextDate }) => (
+              <button
+                key={tanda.id}
+                className="tanda-summary-item"
+                onClick={() => navigate('/tandas')}
+              >
+                <span className="tanda-summary-info">
+                  <span className="tanda-summary-name">🤝 {tanda.name}</span>
+                  <span className="tanda-summary-next">Próxima aportación: {formatDayLabel(nextDate)}</span>
+                </span>
+                <span className="tanda-summary-amount">{formatMoney(tanda.amount)}</span>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
       <section className="chart-card">

@@ -4,10 +4,13 @@ import { formatMoney } from './ExpenseList'
 import { useRecurring } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
+import { useAccounts } from '../utils/useAccounts'
+import { currentMonthISO } from '../utils/dates'
 
 export default function Recurring() {
-  const { recurring, loading, addRecurring, updateRecurring, deleteRecurring } = useRecurring()
+  const { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow } = useRecurring()
   const { getCategory, getSubcategory } = useCategories()
+  const { accounts } = useAccounts()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | plantilla
 
@@ -15,7 +18,9 @@ export default function Recurring() {
     if (editing && editing !== 'new') {
       await updateRecurring(editing.id, data)
     } else {
-      await addRecurring(data)
+      const ref = await addRecurring(data)
+      // Si el día ya pasó este mes, genera el primer movimiento al instante.
+      await generateNow({ id: ref.id, ...data, startMonth: currentMonthISO(), lastGenerated: null, active: true })
     }
     setEditing(null)
   }
@@ -102,6 +107,7 @@ export default function Recurring() {
       {editing && (
         <RecurringEditor
           initial={editing === 'new' ? null : editing}
+          accounts={accounts}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => setEditing(null)}
@@ -111,7 +117,7 @@ export default function Recurring() {
   )
 }
 
-function RecurringEditor({ initial, onSave, onDelete, onClose }) {
+function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
   const confirm = useConfirm()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
@@ -120,6 +126,7 @@ function RecurringEditor({ initial, onSave, onDelete, onClose }) {
   const [subcategory, setSubcategory] = useState(initial?.subcategory ?? '')
   const [note, setNote] = useState(initial?.note ?? '')
   const [day, setDay] = useState(initial?.dayOfMonth ?? 1)
+  const [account, setAccount] = useState(initial?.account ?? '')
 
   const visibleCategories = categories.filter((c) => c.type === type)
   const subcategories = category ? getCategory(category).subcategories ?? [] : []
@@ -141,6 +148,7 @@ function RecurringEditor({ initial, onSave, onDelete, onClose }) {
       subcategory: subcategory || null,
       note: note.trim(),
       dayOfMonth: Math.min(Math.max(Number(day) || 1, 1), 31),
+      account: account || null,
     })
   }
 
@@ -231,6 +239,24 @@ function RecurringEditor({ initial, onSave, onDelete, onClose }) {
             onChange={(e) => setDay(e.target.value)}
           />
         </div>
+
+        {accounts.length > 0 && (
+          <>
+            <p className="picker-label">Cuenta (opcional)</p>
+            <div className="subcategory-picker">
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`subcategory-chip ${account === a.id ? 'selected' : ''}`}
+                  onClick={() => setAccount(account === a.id ? '' : a.id)}
+                >
+                  {a.icon} {a.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <input
           className="note-input"

@@ -18,6 +18,7 @@ export default function Movements() {
   const [type, setType] = useState('all') // all | expense | income
   const [categoryId, setCategoryId] = useState('all')
   const [month, setMonth] = useState('all')
+  const [accountId, setAccountId] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [editing, setEditing] = useState(null)
 
@@ -39,6 +40,7 @@ export default function Movements() {
       const eType = e.type ?? 'expense'
       if (type !== 'all' && eType !== type) return false
       if (categoryId !== 'all' && e.category !== categoryId) return false
+      if (accountId !== 'all' && (e.account ?? '') !== accountId) return false
       if (month !== 'all' && monthOf(e.date) !== month) return false
       if (term) {
         const cat = getCategory(e.category)
@@ -48,12 +50,12 @@ export default function Movements() {
       }
       return true
     })
-  }, [expenses, type, categoryId, month, search, getCategory, getSubcategory])
+  }, [expenses, type, categoryId, accountId, month, search, getCategory, getSubcategory])
 
   // Al cambiar cualquier filtro, se reinicia la paginación.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE)
-  }, [search, type, categoryId, month])
+  }, [search, type, categoryId, accountId, month])
 
   // Si el tipo cambia y la categoría elegida ya no aplica, se limpia.
   useEffect(() => {
@@ -65,12 +67,14 @@ export default function Movements() {
   const net = filtered.reduce((acc, e) => acc + ((e.type ?? 'expense') === 'income' ? e.amount : -e.amount), 0)
   const visible = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length
-  const hasFilters = search.trim() !== '' || type !== 'all' || categoryId !== 'all' || month !== 'all'
+  const hasFilters =
+    search.trim() !== '' || type !== 'all' || categoryId !== 'all' || accountId !== 'all' || month !== 'all'
 
   const clearFilters = () => {
     setSearch('')
     setType('all')
     setCategoryId('all')
+    setAccountId('all')
     setMonth('all')
   }
 
@@ -160,6 +164,20 @@ export default function Movements() {
           ))}
         </select>
       </div>
+
+      {accounts.length > 0 && (
+        <div className="filter-row">
+          <select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            <option value="all">Todas las cuentas</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.icon} {a.name}
+              </option>
+            ))}
+            <option value="">Sin cuenta</option>
+          </select>
+        </div>
+      )}
 
       <div className="results-bar">
         <span>

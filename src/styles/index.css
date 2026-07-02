@@ -1384,6 +1384,48 @@ input, select {
   min-width: 0;
 }
 
+/* Resumen de tandas en Inicio */
+.tanda-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tanda-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.tanda-summary-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tanda-summary-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.tanda-summary-next {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.tanda-summary-amount {
+  margin-left: auto;
+  font-weight: 700;
+  color: var(--danger);
+}
+
 .total-card h2 {
   margin: 4px 0 0;
   font-size: 30px;

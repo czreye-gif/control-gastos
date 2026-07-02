@@ -881,6 +881,27 @@ input, select {
   background: var(--card-2);
 }
 
+.export-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.export-btn:hover:not(:disabled) {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Presupuestos */
 .section-row {
   display: flex;

@@ -3,13 +3,16 @@ import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
 import { useExpenses } from '../utils/useExpenses'
 import { useCategories } from '../contexts/CategoriesContext'
-import { formatMonthLabel, monthOf } from '../utils/dates'
+import { useAccounts } from '../utils/useAccounts'
+import { formatMonthLabel, monthOf, todayISO } from '../utils/dates'
+import { downloadFile, movementsToCsv } from '../utils/exportCsv'
 
 const PAGE_SIZE = 20
 
 export default function Movements() {
   const { expenses, loading, updateExpense, deleteExpense } = useExpenses()
   const { categories, getCategory, getSubcategory } = useCategories()
+  const { accounts } = useAccounts()
 
   const [search, setSearch] = useState('')
   const [type, setType] = useState('all') // all | expense | income
@@ -71,6 +74,18 @@ export default function Movements() {
     setMonth('all')
   }
 
+  const accountName = (id) => (id ? accounts.find((a) => a.id === id)?.name ?? '' : '')
+
+  const handleExport = () => {
+    if (filtered.length === 0) return
+    const csv = movementsToCsv(filtered, {
+      categoryName: (id) => getCategory(id).name,
+      subcategoryName: (catId, subId) => getSubcategory(catId, subId)?.name ?? '',
+      accountName,
+    })
+    downloadFile(`movimientos_${todayISO()}.csv`, csv)
+  }
+
   const handleSave = async (data) => {
     if (editing) await updateExpense(editing.id, data)
     setEditing(null)
@@ -85,6 +100,14 @@ export default function Movements() {
     <div className="page">
       <header className="reports-header">
         <h1>Movimientos</h1>
+        <button
+          type="button"
+          className="export-btn"
+          onClick={handleExport}
+          disabled={filtered.length === 0}
+        >
+          ⬇ Exportar
+        </button>
       </header>
 
       <input

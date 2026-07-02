@@ -2,24 +2,23 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useExpenses } from '../utils/useExpenses'
-import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
+import { useAccounts, computeBalances } from '../utils/useAccounts'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS } from '../utils/categories'
-import { formatDayLabel, todayISO } from '../utils/dates'
+import { todayISO } from '../utils/dates'
 
 const ACCOUNT_ICONS = ['💵', '💳', '🏦', '🐷', '📱', '💰', '🪙', '💸']
 
 export default function Accounts() {
-  const { expenses, loading, } = useExpenses()
-  const { accounts, addAccount, updateAccount, deleteAccount, deposit } = useAccounts()
+  const { expenses, loading } = useExpenses()
+  const { accounts, addAccount, updateAccount, deleteAccount } = useAccounts()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | cuenta
-  const [depositing, setDepositing] = useState(null) // alcancía a la que depositar
 
-  const withBalance = useMemo(() => computeBalances(accounts, expenses), [accounts, expenses])
-  // El total visible no revela las alcancías aún cerradas (sería spoiler).
-  const total = withBalance.reduce((acc, a) => acc + (isPiggyLocked(a) ? 0 : a.balance), 0)
-  const hasLockedPiggy = withBalance.some((a) => isPiggyLocked(a))
+  // Las alcancías (piggy) ya no viven aquí: se manejan en el módulo Ahorros.
+  const regular = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
+  const withBalance = useMemo(() => computeBalances(regular, expenses), [regular, expenses])
+  const total = withBalance.reduce((acc, a) => acc + a.balance, 0)
 
   const handleSave = async (data) => {
     if (editing && editing !== 'new') {
@@ -46,14 +45,14 @@ export default function Accounts() {
         <h1>Cuentas</h1>
       </header>
 
-      {accounts.length > 0 && (
+      {regular.length > 0 && (
         <div className="total-card">
-          <p>Saldo total{hasLockedPiggy ? ' (sin alcancías por abrir)' : ''}</p>
+          <p>Saldo total</p>
           <h2>{formatMoney(total)}</h2>
         </div>
       )}
 
-      {accounts.length === 0 ? (
+      {regular.length === 0 ? (
         <p className="empty-state">
           Aún no tienes cuentas.
           <br />
@@ -61,38 +60,21 @@ export default function Accounts() {
         </p>
       ) : (
         <div className="account-list">
-          {withBalance.map((a) => {
-            const locked = isPiggyLocked(a)
-            return (
-              <div key={a.id} className={`account-card ${a.piggy ? 'piggy' : ''} ${locked ? 'locked' : ''}`}>
-                <button className="account-main" onClick={() => setEditing(a)}>
-                  <span className="account-icon" style={{ background: a.color + '22', color: a.color }}>
-                    {locked ? '🎁' : a.icon}
-                  </span>
-                  <span className="account-info">
-                    <span className="account-name">{a.name}</span>
-                    {a.piggy && (
-                      <span className="account-sub">
-                        {locked ? `Se abre el ${formatDayLabel(a.revealDate)}` : '¡Alcancía abierta! 🎉'}
-                      </span>
-                    )}
-                  </span>
-                  {locked ? (
-                    <span className="account-balance hidden">••••</span>
-                  ) : (
-                    <span className={`account-balance ${a.balance < 0 ? 'negative' : ''}`}>
-                      {formatMoney(a.balance)}
-                    </span>
-                  )}
-                </button>
-                {a.piggy && (
-                  <button className="account-deposit" onClick={() => setDepositing(a)}>
-                    + Depositar
-                  </button>
-                )}
-              </div>
-            )
-          })}
+          {withBalance.map((a) => (
+            <div key={a.id} className="account-card">
+              <button className="account-main" onClick={() => setEditing(a)}>
+                <span className="account-icon" style={{ background: a.color + '22', color: a.color }}>
+                  {a.icon}
+                </span>
+                <span className="account-info">
+                  <span className="account-name">{a.name}</span>
+                </span>
+                <span className={`account-balance ${a.balance < 0 ? 'negative' : ''}`}>
+                  {formatMoney(a.balance)}
+                </span>
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -108,23 +90,11 @@ export default function Accounts() {
           onClose={() => setEditing(null)}
         />
       )}
-
-      {depositing && (
-        <DepositSheet
-          piggy={depositing}
-          accounts={accounts}
-          onDeposit={async (amount, source) => {
-            await deposit({ piggy: depositing, amount, source })
-            setDepositing(null)
-          }}
-          onClose={() => setDepositing(null)}
-        />
-      )}
     </div>
   )
 }
 
-function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
+export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
   const [value, setValue] = useState('')
   const [source, setSource] = useState('')
   const amount = Number(value)
@@ -181,19 +151,21 @@ function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
   )
 }
 
-function AccountEditor({ initial, onSave, onDelete, onClose }) {
+export function AccountEditor({ initial, variant = 'account', onSave, onDelete, onClose }) {
+  const isPiggy = variant === 'piggy'
   const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
-  const [icon, setIcon] = useState(initial?.icon ?? ACCOUNT_ICONS[0])
+  const [icon, setIcon] = useState(initial?.icon ?? (isPiggy ? '🎁' : ACCOUNT_ICONS[0]))
   const [color, setColor] = useState(initial?.color ?? COLOR_OPTIONS[0])
   const [balance, setBalance] = useState(
     initial?.initialBalance != null ? String(initial.initialBalance) : ''
   )
-  const [piggy, setPiggy] = useState(initial?.piggy ?? false)
   const [revealDate, setRevealDate] = useState(initial?.revealDate ?? '')
 
-  const canSave = name.trim().length > 0 && (!piggy || revealDate)
+  const canSave = name.trim().length > 0 && (!isPiggy || revealDate)
   const initialBalance = balance === '' ? 0 : Number(balance)
+
+  const noun = isPiggy ? 'alcancía' : 'cuenta'
 
   const handleSave = () => {
     if (!canSave || !Number.isFinite(initialBalance)) return
@@ -202,8 +174,8 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
       icon,
       color,
       initialBalance,
-      piggy,
-      revealDate: piggy ? revealDate : null,
+      piggy: isPiggy,
+      revealDate: isPiggy ? revealDate : null,
     })
   }
 
@@ -211,7 +183,7 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>{initial ? 'Editar cuenta' : 'Nueva cuenta'}</h2>
+        <h2>{initial ? `Editar ${noun}` : `Nueva ${noun}`}</h2>
 
         <div className="preview-chip" style={{ '--chip-color': color }}>
           <span className="category-icon">{icon}</span>
@@ -221,7 +193,7 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
         <input
           className="note-input"
           type="text"
-          placeholder="Nombre (ej. Tarjeta BBVA)"
+          placeholder={isPiggy ? 'Nombre (ej. Alcancía cumpleaños)' : 'Nombre (ej. Tarjeta BBVA)'}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -267,19 +239,9 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
           />
         </div>
 
-        <button
-          type="button"
-          className={`piggy-toggle ${piggy ? 'on' : ''}`}
-          onClick={() => setPiggy((p) => !p)}
-        >
-          <span>🎁 Alcancía sorpresa</span>
-          <span className={`recurring-toggle ${piggy ? 'on' : ''}`}>
-            <span className="recurring-knob" />
-          </span>
-        </button>
-        {piggy && (
+        {isPiggy && (
           <>
-            <p className="picker-label">Se abre el (fecha sorpresa)</p>
+            <p className="picker-label">🎁 Se abre el (fecha sorpresa)</p>
             <input
               className="date-input"
               type="date"
@@ -298,7 +260,7 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
               onClick={async () => {
                 const ok = await confirm({
                   title: `Eliminar "${initial.name}"`,
-                  message: 'Los movimientos asignados a esta cuenta se conservan, pero dejarán de contar en su saldo.',
+                  message: 'Los movimientos asignados se conservan, pero dejarán de contar en su saldo.',
                 })
                 if (ok) onDelete(initial.id)
               }}

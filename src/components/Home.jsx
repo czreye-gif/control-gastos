@@ -98,8 +98,8 @@ export default function Home() {
       <div className="home-topbar">
         <h2>Mis finanzas</h2>
         <div className="home-topbar-actions">
-          <button className="icon-btn" onClick={() => navigate('/tandas')} aria-label="Tandas">
-            🤝
+          <button className="icon-btn" onClick={() => navigate('/ahorros')} aria-label="Ahorros">
+            🐷
           </button>
           <button className="icon-btn" onClick={() => navigate('/cuentas')} aria-label="Cuentas">
             💳
@@ -195,7 +195,7 @@ export default function Home() {
         <>
           <div className="section-row">
             <h3 className="section-title">Tandas</h3>
-            <button className="link-btn" onClick={() => navigate('/tandas')}>
+            <button className="link-btn" onClick={() => navigate('/ahorros')}>
               Gestionar ›
             </button>
           </div>
@@ -204,7 +204,7 @@ export default function Home() {
               <button
                 key={tanda.id}
                 className="tanda-summary-item"
-                onClick={() => navigate('/tandas')}
+                onClick={() => navigate('/ahorros')}
               >
                 <span className="tanda-summary-info">
                   <span className="tanda-summary-name">🤝 {tanda.name}</span>

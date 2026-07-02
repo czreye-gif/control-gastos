@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
-import { useTandas, tandaDerived } from '../utils/useTandas'
-import { useAccounts } from '../utils/useAccounts'
+import { tandaDerived } from '../utils/useTandas'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { formatDayLabel, todayISO } from '../utils/dates'
 
@@ -14,90 +12,7 @@ const FREQUENCIES = [
 
 const freqUnit = (id) => FREQUENCIES.find((f) => f.id === id)?.unit ?? 'periodo'
 
-export default function Tandas() {
-  const {
-    tandas,
-    loading,
-    addTanda,
-    updateTanda,
-    deleteTanda,
-    registerContribution,
-    undoContribution,
-    registerPayout,
-    undoPayout,
-  } = useTandas()
-  const { accounts } = useAccounts()
-  const navigate = useNavigate()
-  const [editing, setEditing] = useState(null) // null | 'new' | tanda
-
-  const handleSave = async (data) => {
-    if (editing && editing !== 'new') {
-      await updateTanda(editing.id, data)
-    } else {
-      await addTanda(data)
-    }
-    setEditing(null)
-  }
-
-  const handleDelete = async (id) => {
-    await deleteTanda(id)
-    setEditing(null)
-  }
-
-  if (loading) return <p className="loading-text">Cargando...</p>
-
-  return (
-    <div className="page">
-      <header className="sub-header">
-        <button className="icon-btn" onClick={() => navigate('/')} aria-label="Volver">
-          ←
-        </button>
-        <h1>Tandas</h1>
-      </header>
-
-      <p className="page-subtitle">Ahorro rotatorio: aportas cada periodo y cobras el pozo en tu número.</p>
-
-      {tandas.length === 0 ? (
-        <p className="empty-state">
-          Aún no tienes tandas.
-          <br />
-          Toca + para registrar una.
-        </p>
-      ) : (
-        <div className="tanda-list">
-          {tandas.map((t) => (
-            <TandaCard
-              key={t.id}
-              tanda={t}
-              accounts={accounts}
-              onEdit={() => setEditing(t)}
-              onContribute={(date) => registerContribution(t, date)}
-              onUndoContribute={() => undoContribution(t)}
-              onPayout={(date) => registerPayout(t, date)}
-              onUndoPayout={() => undoPayout(t)}
-            />
-          ))}
-        </div>
-      )}
-
-      <button className="fab" onClick={() => setEditing('new')} aria-label="Nueva tanda">
-        +
-      </button>
-
-      {editing && (
-        <TandaEditor
-          initial={editing === 'new' ? null : editing}
-          accounts={accounts}
-          onSave={handleSave}
-          onDelete={handleDelete}
-          onClose={() => setEditing(null)}
-        />
-      )}
-    </div>
-  )
-}
-
-function TandaCard({ tanda, accounts, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
+export function TandaCard({ tanda, accounts, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
   const confirm = useConfirm()
   const [sheet, setSheet] = useState(null) // null | 'contribute' | 'payout'
   const d = tandaDerived(tanda)
@@ -255,7 +170,7 @@ function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, o
   )
 }
 
-function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
+export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')

@@ -9,7 +9,6 @@ export const DEFAULT_CATEGORIES = [
   { name: 'Entretenimiento', icon: '🎮', color: '#ec4899', type: 'expense' },
   { name: 'Ropa', icon: '👕', color: '#06b6d4', type: 'expense' },
   { name: 'Educación', icon: '📚', color: '#22c55e', type: 'expense' },
-  { name: 'Ahorro', icon: '💰', color: '#14b8a6', type: 'expense' },
   { name: 'Otros', icon: '🧾', color: '#64748b', type: 'expense' },
 ]
 

@@ -9,7 +9,7 @@ import Reports from './components/Reports'
 import Budgets from './components/Budgets'
 import Recurring from './components/Recurring'
 import Accounts from './components/Accounts'
-import Tandas from './components/Tandas'
+import Ahorros from './components/Ahorros'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
 import { useOnlineStatus } from './utils/useOnlineStatus'
@@ -44,7 +44,7 @@ function AppShell() {
           <Route path="/presupuestos" element={<Budgets />} />
           <Route path="/recurrentes" element={<Recurring />} />
           <Route path="/cuentas" element={<Accounts />} />
-          <Route path="/tandas" element={<Tandas />} />
+          <Route path="/ahorros" element={<Ahorros />} />
           <Route path="/categorias" element={<Categories />} />
         </Routes>
         <NavBar />

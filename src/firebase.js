@@ -23,6 +23,8 @@ const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
 export const googleProvider = new GoogleAuthProvider()
+// Fuerza el selector de cuentas de Google en cada inicio de sesión
+googleProvider.setCustomParameters({ prompt: 'select_account' })
 
 // Caché local persistente: la app sigue leyendo y guardando datos aunque
 // no haya internet (IndexedDB del navegador), y Firestore sincroniza solo

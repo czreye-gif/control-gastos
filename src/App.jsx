@@ -7,7 +7,7 @@ import Home from './components/Home'
 import Movements from './components/Movements'
 import Reports from './components/Reports'
 import Budgets from './components/Budgets'
-import Recurring from './components/Recurring'
+import Recurring, { RecurringAlerts } from './components/Recurring'
 import Accounts from './components/Accounts'
 import Ahorros from './components/Ahorros'
 import Categories from './components/Categories'
@@ -48,6 +48,7 @@ function AppShell() {
           <Route path="/categorias" element={<Categories />} />
         </Routes>
         <NavBar />
+        <RecurringAlerts />
       </div>
     </CategoriesProvider>
     </ConfirmProvider>

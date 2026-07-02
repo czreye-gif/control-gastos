@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useRecurring } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
-import { currentMonthISO } from '../utils/dates'
+import { currentMonthISO, dateOfMonth, formatDayLabel, nextMonth, todayISO } from '../utils/dates'
 
 export default function Recurring() {
   const { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow } = useRecurring()
@@ -283,6 +283,76 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
           )}
           <button className="btn-primary" disabled={!canSave} onClick={handleSave}>
             Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Próxima fecha de renovación (día del mes) de una plantilla recurrente.
+function nextRenewal(t, today) {
+  const cur = currentMonthISO()
+  let d = dateOfMonth(cur, t.dayOfMonth || 1)
+  if (d < today) d = dateOfMonth(nextMonth(cur), t.dayOfMonth || 1)
+  return d
+}
+
+// Aviso (una vez al día) de los pagos recurrentes que se renuevan dentro de
+// 5 días, con la opción de cancelarlos si el usuario ya no quiere pagarlos.
+export function RecurringAlerts() {
+  const { recurring, updateRecurring } = useRecurring()
+  const { getCategory } = useCategories()
+  const today = todayISO()
+  const [closed, setClosed] = useState(() => localStorage.getItem('recurAlertDate') === today)
+
+  const upcoming = useMemo(() => {
+    if (closed) return []
+    return recurring
+      .filter((t) => t.active !== false)
+      .map((t) => {
+        const date = nextRenewal(t, today)
+        const days = Math.round((new Date(date + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000)
+        return { t, date, days }
+      })
+      .filter((x) => x.days >= 0 && x.days <= 5)
+      .sort((a, b) => a.days - b.days)
+  }, [recurring, today, closed])
+
+  if (closed || upcoming.length === 0) return null
+
+  const dismiss = () => {
+    localStorage.setItem('recurAlertDate', today)
+    setClosed(true)
+  }
+
+  return (
+    <div className="confirm-backdrop">
+      <div className="confirm-dialog">
+        <h3>🔔 Pagos por renovar</h3>
+        <p>Estos pagos recurrentes se cargarán pronto. Cancélalos si ya no los quieres seguir pagando.</p>
+        <div className="alert-list">
+          {upcoming.map(({ t, date, days }) => (
+            <div className="alert-item" key={t.id}>
+              <div className="alert-info">
+                <div className="alert-name">
+                  {getCategory(t.category).icon} {getCategory(t.category).name}
+                  {t.note ? ` · ${t.note}` : ''}
+                </div>
+                <div className="alert-sub">
+                  {formatMoney(t.amount)} · {days === 0 ? 'hoy' : `en ${days} día${days === 1 ? '' : 's'}`} (
+                  {formatDayLabel(date)})
+                </div>
+              </div>
+              <button className="link-btn danger" onClick={() => updateRecurring(t.id, { active: false })}>
+                Cancelar
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="confirm-actions">
+          <button className="btn-primary" onClick={dismiss}>
+            Entendido
           </button>
         </div>
       </div>

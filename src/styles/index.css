@@ -389,9 +389,23 @@ input, select {
   width: 100%;
   max-width: 420px;
   border-radius: 20px;
-  padding: 18px 18px 22px;
   max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Cabecera fija: el monto queda siempre visible mientras tecleas. */
+.modal-sticky {
+  padding: 18px 18px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.modal-body {
+  padding: 14px 18px 20px;
   overflow-y: auto;
+  flex: 1;
 }
 
 .modal-head {
@@ -408,10 +422,10 @@ input, select {
 
 .amount-display {
   text-align: center;
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 800;
   letter-spacing: -1px;
-  margin: 6px 0 16px;
+  margin: 6px 0 2px;
 }
 
 .amount-display.income {
@@ -573,6 +587,46 @@ input, select {
 .confirm-actions {
   display: flex;
   gap: 10px;
+}
+
+/* Lista del aviso de pagos por renovar */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: -8px 0 18px;
+  max-height: 40vh;
+  overflow-y: auto;
+}
+
+.alert-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.alert-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.alert-sub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.link-btn.danger {
+  color: var(--danger);
+  flex-shrink: 0;
 }
 
 .btn-ghost {

@@ -27,6 +27,8 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const canSave = cents > 0 && category
   const visibleCategories = categories.filter((c) => c.type === type)
   const subcategories = category ? getCategory(category).subcategories ?? [] : []
+  // Las alcancías no son método de pago; se excluyen del selector de cuenta.
+  const payAccounts = accounts.filter((a) => !a.piggy)
 
   const pressKey = (k) => {
     if (k === 'back') {
@@ -78,6 +80,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-sticky">
         <div className="modal-head">
           <h2>{initial ? (type === 'income' ? 'Editar ingreso' : 'Editar gasto') : 'Nuevo movimiento'}</h2>
           <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
@@ -103,7 +106,9 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
         )}
 
         <div className={`amount-display ${type === 'income' ? 'income' : ''}`}>{formatMoney(amount)}</div>
+        </div>
 
+        <div className="modal-body">
         <div className="category-grid">
           {visibleCategories.map((c) => (
             <button
@@ -141,11 +146,13 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
           </>
         )}
 
-        {accounts.length > 0 && (
+        {payAccounts.length > 0 && (
           <>
-            <p className="picker-label">Cuenta (opcional)</p>
+            <p className="picker-label">
+              {type === 'income' ? 'Cuenta de destino (opcional)' : 'Método de pago (opcional)'}
+            </p>
             <div className="subcategory-picker">
-              {accounts.map((a) => (
+              {payAccounts.map((a) => (
                 <button
                   key={a.id}
                   type="button"
@@ -192,6 +199,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
           <button className="btn-primary" disabled={!canSave} onClick={handleSave}>
             Guardar
           </button>
+        </div>
         </div>
       </div>
     </div>

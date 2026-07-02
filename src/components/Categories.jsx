@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
+import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS, ICON_GROUPS } from '../utils/categories'
 
 export default function Categories() {
@@ -93,6 +94,7 @@ export default function Categories() {
 }
 
 function CategoryEditor({ initial, onSave, onDelete, onAddSubcategory, onDeleteSubcategory, onClose }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? ICON_GROUPS[0].icons[0])
   const [color, setColor] = useState(initial?.color ?? COLOR_OPTIONS[0])
@@ -203,7 +205,16 @@ function CategoryEditor({ initial, onSave, onDelete, onAddSubcategory, onDeleteS
 
         <div className="sheet-actions">
           {initial && (
-            <button className="btn-danger" onClick={() => onDelete(initial.id)}>
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Eliminar "${initial.name}"`,
+                  message: 'Los movimientos de esta categoría quedarán como "Sin categoría".',
+                })
+                if (ok) onDelete(initial.id)
+              }}
+            >
               Eliminar
             </button>
           )}

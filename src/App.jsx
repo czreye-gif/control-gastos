@@ -1,6 +1,7 @@
 import { HashRouter, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { CategoriesProvider } from './contexts/CategoriesContext'
+import { ConfirmProvider } from './contexts/ConfirmContext'
 import Login from './components/Login'
 import Home from './components/Home'
 import Movements from './components/Movements'
@@ -27,6 +28,7 @@ function AppShell() {
   }
 
   return (
+    <ConfirmProvider>
     <CategoriesProvider>
       <div className="app-shell">
         {!online && (
@@ -46,6 +48,7 @@ function AppShell() {
         <NavBar />
       </div>
     </CategoriesProvider>
+    </ConfirmProvider>
   )
 }
 

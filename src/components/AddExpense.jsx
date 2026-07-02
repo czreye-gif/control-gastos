@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
+import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
 import { todayISO } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
@@ -10,6 +11,7 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
 export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
   const { accounts } = useAccounts()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   // El monto se maneja en centavos, como en las terminales bancarias:
   // cada dígito que tecleas se acomoda desde la derecha.
@@ -63,6 +65,14 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const goToCategories = () => {
     onClose()
     navigate('/categorias')
+  }
+
+  const askDelete = async () => {
+    const ok = await confirm({
+      title: type === 'income' ? 'Eliminar ingreso' : 'Eliminar gasto',
+      message: 'Esta acción no se puede deshacer.',
+    })
+    if (ok) onDelete(initial.id)
   }
 
   return (
@@ -175,7 +185,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
 
         <div className="sheet-actions">
           {initial && (
-            <button className="btn-danger" onClick={() => onDelete(initial.id)}>
+            <button className="btn-danger" onClick={askDelete}>
               Eliminar
             </button>
           )}

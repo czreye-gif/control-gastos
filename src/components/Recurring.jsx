@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useRecurring } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
+import { useConfirm } from '../contexts/ConfirmContext'
 
 export default function Recurring() {
   const { recurring, loading, addRecurring, updateRecurring, deleteRecurring } = useRecurring()
@@ -112,6 +113,7 @@ export default function Recurring() {
 
 function RecurringEditor({ initial, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
+  const confirm = useConfirm()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [type, setType] = useState(initial?.type ?? 'expense')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -240,7 +242,16 @@ function RecurringEditor({ initial, onSave, onDelete, onClose }) {
 
         <div className="sheet-actions">
           {initial && (
-            <button className="btn-danger" onClick={() => onDelete(initial.id)}>
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Eliminar recurrente',
+                  message: 'Se dejará de registrar este pago automáticamente. Los movimientos ya creados se conservan.',
+                })
+                if (ok) onDelete(initial.id)
+              }}
+            >
               Eliminar
             </button>
           )}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useExpenses } from '../utils/useExpenses'
 import { useAccounts, computeBalances } from '../utils/useAccounts'
+import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS } from '../utils/categories'
 
 const ACCOUNT_ICONS = ['💵', '💳', '🏦', '🐷', '📱', '💰', '🪙', '💸']
@@ -87,6 +88,7 @@ export default function Accounts() {
 }
 
 function AccountEditor({ initial, onSave, onDelete, onClose }) {
+  const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
   const [icon, setIcon] = useState(initial?.icon ?? ACCOUNT_ICONS[0])
   const [color, setColor] = useState(initial?.color ?? COLOR_OPTIONS[0])
@@ -164,7 +166,16 @@ function AccountEditor({ initial, onSave, onDelete, onClose }) {
 
         <div className="sheet-actions">
           {initial && (
-            <button className="btn-danger" onClick={() => onDelete(initial.id)}>
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Eliminar "${initial.name}"`,
+                  message: 'Los movimientos asignados a esta cuenta se conservan, pero dejarán de contar en su saldo.',
+                })
+                if (ok) onDelete(initial.id)
+              }}
+            >
               Eliminar
             </button>
           )}

@@ -561,6 +561,42 @@ input, select {
   color: var(--muted);
 }
 
+.migration-card {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.migration-card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+
+.migration-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.migration-email {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--green);
+  margin: 0;
+}
+
+.migration-status {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 14px;
+  margin-top: 4px;
+}
+
 .btn-danger {
   background: transparent;
   color: var(--danger);

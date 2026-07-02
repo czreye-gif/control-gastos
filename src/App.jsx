@@ -9,6 +9,7 @@ import Reports from './components/Reports'
 import Budgets from './components/Budgets'
 import Recurring, { RecurringAlerts, RecurringConfirm } from './components/Recurring'
 import Accounts from './components/Accounts'
+import Migration from './components/Migration'
 import Ahorros from './components/Ahorros'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
@@ -44,6 +45,7 @@ function AppShell() {
           <Route path="/cuentas" element={<Accounts />} />
           <Route path="/ahorros" element={<Ahorros />} />
           <Route path="/categorias" element={<Categories />} />
+          <Route path="/migracion" element={<Migration />} />
         </Routes>
         <NavBar />
         <RecurringConfirm />

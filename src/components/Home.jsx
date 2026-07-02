@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import {
   Bar,
   BarChart,
@@ -30,9 +31,11 @@ import {
 
 export default function Home() {
   const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses()
+  const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [showAccount, setShowAccount] = useState(false)
 
   const { budgets } = useBudgets()
   const { accounts } = useAccounts()
@@ -117,8 +120,18 @@ export default function Home() {
           >
             📖
           </button>
+          <button className="icon-btn" onClick={() => setShowAccount((v) => !v)} aria-label="Cuenta">
+            👤
+          </button>
         </div>
       </div>
+
+      {showAccount && (
+        <div className="account-popup">
+          <p className="account-popup-email">{user?.email}</p>
+          <button className="btn-danger" onClick={logout}>Cerrar sesión</button>
+        </div>
+      )}
 
       <div className="balance-card">
         <div className="balance-item">

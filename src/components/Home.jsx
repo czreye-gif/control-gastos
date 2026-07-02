@@ -14,7 +14,7 @@ import AddExpense from './AddExpense'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
 import { useBudgets } from '../utils/useBudgets'
-import { useAccounts, computeBalances } from '../utils/useAccounts'
+import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
 import { useCategories } from '../contexts/CategoriesContext'
 import {
   addDaysISO,
@@ -126,16 +126,23 @@ export default function Home() {
             </button>
           </div>
           <div className="account-strip">
-            {accountBalances.map((a) => (
-              <button key={a.id} className="account-chip" onClick={() => navigate('/cuentas')}>
-                <span className="account-chip-name">
-                  {a.icon} {a.name}
-                </span>
-                <span className={`account-chip-balance ${a.balance < 0 ? 'negative' : ''}`}>
-                  {formatMoney(a.balance)}
-                </span>
-              </button>
-            ))}
+            {accountBalances.map((a) => {
+              const locked = isPiggyLocked(a)
+              return (
+                <button key={a.id} className="account-chip" onClick={() => navigate('/cuentas')}>
+                  <span className="account-chip-name">
+                    {locked ? '🎁' : a.icon} {a.name}
+                  </span>
+                  {locked ? (
+                    <span className="account-chip-balance hidden">••••</span>
+                  ) : (
+                    <span className={`account-chip-balance ${a.balance < 0 ? 'negative' : ''}`}>
+                      {formatMoney(a.balance)}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         </>
       )}

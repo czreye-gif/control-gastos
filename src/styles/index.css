@@ -133,24 +133,6 @@ input, select {
   font-size: 20px;
 }
 
-.account-popup {
-  background: var(--card-2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px 16px;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.account-popup-email {
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-  word-break: break-all;
-}
 
 .home-topbar-actions {
   display: flex;
@@ -1697,4 +1679,98 @@ input, select {
 .nav-item.active {
   color: var(--green);
   font-weight: 600;
+}
+
+/* Avatar de cuenta en NavBar */
+.nav-avatar {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  background: var(--green-dim);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.nav-online-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--card);
+}
+
+.nav-online-dot.online  { background: var(--green); }
+.nav-online-dot.offline { background: #64748b; }
+
+/* Sheet de cuenta */
+.account-sheet {
+  max-height: 280px;
+}
+
+.account-sheet-profile {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0 20px;
+}
+
+.account-sheet-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--green-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.account-sheet-info {
+  min-width: 0;
+}
+
+.account-sheet-email {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.account-sheet-status {
+  margin: 0;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.account-sheet-status.online  { color: var(--green); }
+.account-sheet-status.offline { color: var(--muted); }
+
+.account-sheet-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
+.account-sheet-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.account-sheet-btn {
+  flex: 1;
 }

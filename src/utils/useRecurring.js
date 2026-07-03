@@ -70,7 +70,31 @@ export function useRecurring() {
   // usuario confirmó (puede ser distinta de la asignada, o ninguna).
   const commitDue = (t, account) => generateOccurrences(user.uid, t, account)
 
-  return { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow, commitDue }
+  // Registra UN solo movimiento en una fecha específica y actualiza lastGenerated.
+  const commitOne = async (t, account, date) => {
+    if (t.active === false) return
+    const acc = account !== undefined ? account || null : t.account || null
+    const month = date.slice(0, 7)
+    await addDoc(collection(db, 'users', user.uid, 'expenses'), {
+      amount: t.amount,
+      type: t.type || 'expense',
+      category: t.category,
+      subcategory: t.subcategory || null,
+      note: t.note || '',
+      date,
+      account: acc,
+      recurringId: t.id,
+      createdAt: serverTimestamp(),
+    })
+    const last = t.lastGenerated
+    if (!last || month >= last) {
+      await updateDoc(doc(db, 'users', user.uid, 'recurring', t.id), {
+        lastGenerated: month,
+      })
+    }
+  }
+
+  return { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow, commitDue, commitOne }
 }
 
 // Meses "vencidos" de una plantilla: desde su inicio (o el último generado)

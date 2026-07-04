@@ -579,6 +579,14 @@ input, select {
   margin-top: 4px;
 }
 
+.category-maintenance {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 12px;
+}
+
 .btn-danger {
   background: transparent;
   color: var(--danger);

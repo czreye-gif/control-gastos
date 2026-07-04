@@ -22,6 +22,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const [note, setNote] = useState(initial?.note ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
   const [account, setAccount] = useState(initial?.account ?? '')
+  const [saving, setSaving] = useState(false)
 
   const amount = cents / 100
   const canSave = cents > 0 && category
@@ -52,7 +53,13 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   }
 
   const handleSave = () => {
-    if (!canSave) return
+    // Candado anti doble-guardado: `saving` se activa de forma síncrona en el
+    // primer clic, así que cualquier clic posterior sale de inmediato. El padre
+    // (Home) persiste el movimiento y cierra la modal. Antes no había candado ni
+    // se cerraba la modal, por eso el usuario guardaba el mismo movimiento varias
+    // veces creyendo que no pasaba nada.
+    if (!canSave || saving) return
+    setSaving(true)
     onSave({
       amount,
       type,
@@ -78,12 +85,12 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
+    <div className="modal-backdrop" onClick={saving ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-sticky">
         <div className="modal-head">
           <h2>{initial ? (type === 'income' ? 'Editar ingreso' : 'Editar gasto') : 'Nuevo movimiento'}</h2>
-          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar" disabled={saving}>✕</button>
         </div>
 
         {!initial && (
@@ -192,12 +199,12 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
 
         <div className="sheet-actions">
           {initial && (
-            <button className="btn-danger" onClick={askDelete}>
+            <button className="btn-danger" onClick={askDelete} disabled={saving}>
               Eliminar
             </button>
           )}
-          <button className="btn-primary" disabled={!canSave} onClick={handleSave}>
-            Guardar
+          <button className="btn-primary" disabled={!canSave || saving} onClick={handleSave}>
+            {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
         </div>

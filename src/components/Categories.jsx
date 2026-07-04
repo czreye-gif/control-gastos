@@ -5,13 +5,47 @@ import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS, ICON_GROUPS } from '../utils/categories'
 
 export default function Categories() {
-  const { categories, addCategory, updateCategory, deleteCategory, addSubcategory, deleteSubcategory } =
-    useCategories()
+  const {
+    categories,
+    addCategory,
+    updateCategory,
+    deleteCategory,
+    addSubcategory,
+    deleteSubcategory,
+    repairDuplicates,
+  } = useCategories()
   const navigate = useNavigate()
+  const confirm = useConfirm()
   const [type, setType] = useState('expense')
   const [editing, setEditing] = useState(null) // null | 'new' | categoría
+  const [repairing, setRepairing] = useState(false)
+  const [repairStatus, setRepairStatus] = useState('')
 
   const visible = useMemo(() => categories.filter((c) => c.type === type), [categories, type])
+
+  const handleRepair = async () => {
+    const ok = await confirm({
+      title: 'Reparar duplicados',
+      message:
+        'Fusiona las categorías repetidas (mismo nombre y tipo) en una sola y reasigna sus movimientos, presupuestos y recurrentes. Conviene exportar un respaldo antes desde Migración.',
+      confirmText: 'Reparar',
+      danger: false,
+    })
+    if (!ok) return
+    setRepairing(true)
+    setRepairStatus('Reparando…')
+    try {
+      const r = await repairDuplicates()
+      setRepairStatus(
+        r.removed === 0
+          ? '✅ No se encontraron categorías duplicadas.'
+          : `✅ ${r.mergedGroups} grupo(s) fusionado(s), ${r.removed} copia(s) eliminada(s), ${r.repointed} movimiento(s) reasignado(s).`,
+      )
+    } catch (e) {
+      setRepairStatus('❌ Error: ' + e.message)
+    }
+    setRepairing(false)
+  }
 
   // `editing` solo guarda el id; la categoría "viva" se busca en cada render
   // para que los cambios de Firestore (p.ej. subcategorías) se reflejen al instante.
@@ -78,6 +112,13 @@ export default function Categories() {
       <button className="fab" onClick={() => setEditing('new')} aria-label="Nueva categoría">
         +
       </button>
+
+      <div className="category-maintenance">
+        <button className="btn-ghost" onClick={handleRepair} disabled={repairing}>
+          {repairing ? 'Reparando…' : '🧹 Reparar duplicados'}
+        </button>
+        {repairStatus && <p className="migration-status">{repairStatus}</p>}
+      </div>
 
       {editing && (
         <CategoryEditor

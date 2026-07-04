@@ -91,8 +91,19 @@ export default function Movements() {
   }
 
   const handleSave = async (data) => {
-    if (editing) await updateExpense(editing.id, data)
+    if (!editing) {
+      setEditing(null)
+      return
+    }
+    // Cierre optimista (igual que en Home): cerramos la modal al instante y
+    // sincronizamos en segundo plano, para que no se sienta "congelada".
+    const op = updateExpense(editing.id, data)
     setEditing(null)
+    try {
+      await op
+    } catch (e) {
+      console.error('No se pudo sincronizar el movimiento:', e)
+    }
   }
 
   const handleDelete = async (id) => {

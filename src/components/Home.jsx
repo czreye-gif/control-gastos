@@ -78,13 +78,19 @@ export default function Home() {
   }, [budgets, categories, expensesOnly])
 
   const handleSave = async (data) => {
-    if (editing) {
-      await updateExpense(editing.id, data)
-    } else {
-      await addExpense(data)
-    }
+    // Cierre optimista: la escritura local de Firestore es inmediata y el
+    // onSnapshot ya refleja el movimiento, así que cerramos la modal al instante
+    // (funciona offline) y dejamos que la sincronización con el servidor ocurra
+    // en segundo plano. Antes esperábamos el ack del servidor para cerrar, lo que
+    // dejaba la modal "congelada" y provocaba que el usuario guardara varias veces.
+    const op = editing ? updateExpense(editing.id, data) : addExpense(data)
     setShowAdd(false)
     setEditing(null)
+    try {
+      await op
+    } catch (e) {
+      console.error('No se pudo sincronizar el movimiento:', e)
+    }
   }
 
   const handleDelete = async (id) => {

@@ -11,9 +11,10 @@ const ACCOUNT_ICONS = ['💵', '💳', '🏦', '🐷', '📱', '💰', '🪙', '
 
 export default function Accounts() {
   const { expenses, loading } = useExpenses()
-  const { accounts, addAccount, updateAccount, deleteAccount } = useAccounts()
+  const { accounts, addAccount, updateAccount, deleteAccount, transfer } = useAccounts()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | cuenta
+  const [transferring, setTransferring] = useState(false)
 
   // Las alcancías (piggy) ya no viven aquí: se manejan en el módulo Ahorros.
   const regular = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
@@ -50,6 +51,12 @@ export default function Accounts() {
           <p>Saldo total</p>
           <h2>{formatMoney(total)}</h2>
         </div>
+      )}
+
+      {regular.length >= 2 && (
+        <button className="transfer-btn" onClick={() => setTransferring(true)}>
+          🔄 Traspasar entre cuentas
+        </button>
       )}
 
       {regular.length === 0 ? (
@@ -90,6 +97,128 @@ export default function Accounts() {
           onClose={() => setEditing(null)}
         />
       )}
+
+      {transferring && (
+        <TransferSheet
+          accounts={withBalance}
+          onTransfer={async (data) => {
+            await transfer(data)
+            setTransferring(false)
+          }}
+          onClose={() => setTransferring(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Hoja para mover dinero de una cuenta a otra.
+function TransferSheet({ accounts, onTransfer, onClose }) {
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
+  const [value, setValue] = useState('')
+  const [date, setDate] = useState(todayISO())
+  const [note, setNote] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const amount = Number(value)
+  const fromAcc = accounts.find((a) => a.id === from)
+  const insufficient = fromAcc && amount > 0 && amount > fromAcc.balance
+  const canSave = from && to && from !== to && value !== '' && Number.isFinite(amount) && amount > 0
+
+  // Al elegir origen, si el destino coincide se limpia para evitar A→A.
+  const selectFrom = (id) => {
+    setFrom(id)
+    if (to === id) setTo('')
+  }
+
+  const handleSave = async () => {
+    if (!canSave || saving) return
+    setSaving(true)
+    await onTransfer({ from, to, amount, date, note })
+  }
+
+  return (
+    <div className="sheet-backdrop" onClick={saving ? undefined : onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>Traspasar entre cuentas</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar" disabled={saving}>✕</button>
+        </div>
+
+        <p className="picker-label">Desde</p>
+        <div className="subcategory-picker">
+          {accounts.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              className={`subcategory-chip ${from === a.id ? 'selected' : ''}`}
+              onClick={() => selectFrom(a.id)}
+            >
+              {a.icon} {a.name} · {formatMoney(a.balance)}
+            </button>
+          ))}
+        </div>
+
+        <p className="picker-label">Hacia</p>
+        <div className="subcategory-picker">
+          {accounts
+            .filter((a) => a.id !== from)
+            .map((a) => (
+              <button
+                key={a.id}
+                type="button"
+                className={`subcategory-chip ${to === a.id ? 'selected' : ''}`}
+                onClick={() => setTo(to === a.id ? '' : a.id)}
+              >
+                {a.icon} {a.name} · {formatMoney(a.balance)}
+              </button>
+            ))}
+        </div>
+
+        <p className="picker-label">Monto</p>
+        <div className="amount-input-wrap">
+          <span className="amount-prefix">$</span>
+          <input
+            className="amount-input-field"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="1"
+            placeholder="0"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </div>
+        {insufficient && (
+          <p className="tanda-error">⚠️ El monto supera el saldo de {fromAcc.name} ({formatMoney(fromAcc.balance)}). El traspaso se registra igual y la cuenta quedará en negativo.</p>
+        )}
+
+        <p className="picker-label">Fecha</p>
+        <input
+          className="date-input"
+          type="date"
+          value={date}
+          max={todayISO()}
+          onChange={(e) => setDate(e.target.value)}
+        />
+
+        <input
+          className="note-input"
+          type="text"
+          placeholder="Nota (opcional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+
+        <div className="sheet-actions">
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+          <button className="btn-primary" disabled={!canSave || saving} onClick={handleSave}>
+            {saving ? 'Traspasando…' : 'Traspasar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

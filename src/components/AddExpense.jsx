@@ -7,7 +7,7 @@ import { computeFrequentMovements } from '../utils/favorites'
 import { todayISO } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
 
-const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
+const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '00', '0', 'back']
 
 export default function AddExpense({ initial, expenses, onSave, onDelete, onClose }) {
   const { categories, getCategory, getSubcategory } = useCategories()

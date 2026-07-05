@@ -86,6 +86,44 @@ export function useAccounts() {
     }
   }
 
+  // Traspaso entre dos cuentas: sale dinero de una y entra en la otra. Se
+  // registra como un par de movimientos marcados `transfer: true` (no cuentan
+  // como gasto/ingreso) y ligados por un mismo `transferId` para poder
+  // deshacer el par completo después.
+  const transfer = async ({ from, to, amount, date, note }) => {
+    if (!from || !to || from === to || !(amount > 0)) return
+    const expRef = collection(db, 'users', user.uid, 'expenses')
+    const when = date || todayISO()
+    const fromAcc = accounts.find((a) => a.id === from)
+    const toAcc = accounts.find((a) => a.id === to)
+    const extra = note?.trim() ? ` · ${note.trim()}` : ''
+    const transferId = crypto.randomUUID()
+    await addDoc(expRef, {
+      amount,
+      type: 'expense',
+      transfer: true,
+      category: null,
+      subcategory: null,
+      note: `Traspaso a ${toAcc?.name ?? 'otra cuenta'}${extra}`,
+      date: when,
+      account: from,
+      transferId,
+      createdAt: serverTimestamp(),
+    })
+    await addDoc(expRef, {
+      amount,
+      type: 'income',
+      transfer: true,
+      category: null,
+      subcategory: null,
+      note: `Traspaso de ${fromAcc?.name ?? 'otra cuenta'}${extra}`,
+      date: when,
+      account: to,
+      transferId,
+      createdAt: serverTimestamp(),
+    })
+  }
+
   const updateAccount = (id, data) => {
     return updateDoc(doc(db, 'users', user.uid, 'accounts', id), data)
   }
@@ -94,7 +132,7 @@ export function useAccounts() {
     return deleteDoc(doc(db, 'users', user.uid, 'accounts', id))
   }
 
-  return { accounts, loading, addAccount, updateAccount, deleteAccount, deposit }
+  return { accounts, loading, addAccount, updateAccount, deleteAccount, deposit, transfer }
 }
 
 // Saldo actual por cuenta a partir de todos los movimientos.

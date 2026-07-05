@@ -1072,6 +1072,21 @@ input, select {
   opacity: 0.85;
 }
 
+.transfer-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--card-2);
+  color: var(--text);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
 .balance-breakdown {
   display: flex;
   gap: 8px;

@@ -116,6 +116,14 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
         </div>
 
         <div className="modal-body">
+        <div className="keypad">
+          {KEYS.map((k) => (
+            <button key={k} type="button" className="key" onClick={() => pressKey(k)}>
+              {k === 'back' ? '⌫' : k}
+            </button>
+          ))}
+        </div>
+
         <div className="category-grid">
           {visibleCategories.map((c) => (
             <button
@@ -172,14 +180,6 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
             </div>
           </>
         )}
-
-        <div className="keypad">
-          {KEYS.map((k) => (
-            <button key={k} type="button" className="key" onClick={() => pressKey(k)}>
-              {k === 'back' ? '⌫' : k}
-            </button>
-          ))}
-        </div>
 
         <input
           className="note-input"

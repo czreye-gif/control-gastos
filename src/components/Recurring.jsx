@@ -222,7 +222,10 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>{initial ? 'Editar recurrente' : 'Nuevo recurrente'}</h2>
+        <div className="sheet-head">
+          <h2>{initial ? 'Editar recurrente' : 'Nuevo recurrente'}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
 
         <div className="type-toggle">
           <button type="button" className={`type-toggle-btn ${type === 'expense' ? 'selected' : ''}`} onClick={() => selectType('expense')}>Gasto</button>
@@ -243,11 +246,10 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
               <span>{c.name}</span>
             </button>
           ))}
-          <button type="button" className="category-chip edit-chip" onClick={goToCategories}>
-            <span className="category-icon">✏️</span>
-            <span>Editar</span>
-          </button>
         </div>
+        <button type="button" className="edit-categories-btn" onClick={goToCategories}>
+          ✏️ Editar categorías y subcategorías
+        </button>
 
         {subcategories.length > 0 && (
           <>

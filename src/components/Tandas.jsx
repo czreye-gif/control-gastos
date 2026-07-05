@@ -144,7 +144,10 @@ function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, o
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>{title}</h2>
+        <div className="sheet-head">
+          <h2>{title}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
 
         <div className="register-amount">
           {formatMoney(amount)}
@@ -211,7 +214,10 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>{initial ? 'Editar tanda' : 'Nueva tanda'}</h2>
+        <div className="sheet-head">
+          <h2>{initial ? 'Editar tanda' : 'Nueva tanda'}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
 
         <input
           className="note-input"

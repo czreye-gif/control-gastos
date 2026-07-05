@@ -186,6 +186,7 @@ function ApplySheet({ t, accounts, commitOne, onClose }) {
 function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
   const confirm = useConfirm()
+  const navigate = useNavigate()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [type, setType] = useState(initial?.type ?? 'expense')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -200,6 +201,11 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const canSave = amount !== '' && Number.isFinite(amountNum) && amountNum > 0 && category
 
   const selectType = (t) => { setType(t); setCategory(''); setSubcategory('') }
+
+  const goToCategories = () => {
+    onClose()
+    navigate('/categorias')
+  }
 
   const handleSave = () => {
     if (!canSave) return
@@ -237,6 +243,10 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
               <span>{c.name}</span>
             </button>
           ))}
+          <button type="button" className="category-chip edit-chip" onClick={goToCategories}>
+            <span className="category-icon">✏️</span>
+            <span>Editar</span>
+          </button>
         </div>
 
         {subcategories.length > 0 && (

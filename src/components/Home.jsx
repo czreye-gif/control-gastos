@@ -297,6 +297,7 @@ export default function Home() {
       {showAdd && (
         <AddExpense
           initial={editing}
+          expenses={expenses}
           onSave={handleSave}
           onDelete={handleDelete}
           onClose={() => {

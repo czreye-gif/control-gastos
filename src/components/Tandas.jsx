@@ -196,6 +196,38 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
     myNum >= 1 &&
     myNum <= totalNum
 
+  // Mensaje de validación explícito: en vez de solo deshabilitar el botón,
+  // le decimos al usuario qué falta o qué está mal.
+  const error =
+    myNumber !== '' && totalCount !== '' && myNum > totalNum
+      ? `Tu turno (${myNum}) no puede ser mayor que el número de participantes (${totalNum}).`
+      : myNumber !== '' && (!Number.isInteger(myNum) || myNum < 1)
+        ? 'Tu turno debe ser un número mayor o igual a 1.'
+        : ''
+
+  // Resumen en vivo: traduce la configuración a lenguaje simple para que el
+  // usuario confirme de un vistazo qué está creando (cuánto da, cuánto cobra
+  // y cuándo). Solo se calcula cuando los datos ya son válidos.
+  const previewValid =
+    amountNum > 0 &&
+    Number.isInteger(totalNum) &&
+    totalNum >= 1 &&
+    Number.isInteger(myNum) &&
+    myNum >= 1 &&
+    myNum <= totalNum &&
+    startDate
+  const preview = previewValid
+    ? tandaDerived({
+        amount: amountNum,
+        totalCount: totalNum,
+        myNumber: myNum,
+        frequency,
+        startDate,
+        paysOnOwnTurn,
+        paidCount: 0,
+      })
+    : null
+
   const handleSave = () => {
     if (!canSave) return
     onSave({
@@ -258,7 +290,7 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
 
         <div className="tanda-fields">
           <div>
-            <p className="picker-label">Números (participantes)</p>
+            <p className="picker-label">¿Cuántas personas participan?</p>
             <input
               className="note-input"
               type="number"
@@ -270,7 +302,7 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
             />
           </div>
           <div>
-            <p className="picker-label">Tu número</p>
+            <p className="picker-label">¿En qué turno cobras?</p>
             <input
               className="note-input"
               type="number"
@@ -283,31 +315,34 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
             />
           </div>
         </div>
+        <p className="piggy-hint">
+          Cada participante cobra el pozo una vez, por turnos. Tu turno es el número que te tocó para cobrar.
+        </p>
 
-        <p className="picker-label">El día que te toca cobrar…</p>
+        <p className="picker-label">El día que cobras tu pozo, ¿también das tu aportación?</p>
         <div className="type-toggle">
           <button
             type="button"
             className={`type-toggle-btn ${paysOnOwnTurn ? 'selected' : ''}`}
             onClick={() => setPaysOnOwnTurn(true)}
           >
-            También aporto
+            Sí, aporto igual
           </button>
           <button
             type="button"
             className={`type-toggle-btn ${!paysOnOwnTurn ? 'selected' : ''}`}
             onClick={() => setPaysOnOwnTurn(false)}
           >
-            No aporto ese día
+            No, ese día no
           </button>
         </div>
         <p className="piggy-hint">
           {paysOnOwnTurn
-            ? 'Estilo tanda de 10: aportas en todos los periodos, incluido tu turno.'
-            : 'Estilo tanda de 11: no aportas el periodo que cobras (una aportación menos).'}
+            ? 'Aportas en todos los turnos, incluido el tuyo (lo más común).'
+            : 'No aportas el turno en que cobras, así que haces una aportación menos.'}
         </p>
 
-        <p className="picker-label">Fecha de la primera aportación</p>
+        <p className="picker-label">¿Cuándo es la primera aportación?</p>
         <input
           className="date-input"
           type="date"
@@ -331,6 +366,30 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
               ))}
             </div>
           </>
+        )}
+
+        {error && <p className="tanda-error">⚠️ {error}</p>}
+
+        {preview && (
+          <div className="tanda-summary">
+            <p className="tanda-summary-title">Resumen</p>
+            <ul className="tanda-summary-lines">
+              <li>
+                Aportas <strong>{formatMoney(amountNum)}</strong> cada <strong>{freqUnit(frequency)}</strong>.
+              </li>
+              <li>
+                Harás <strong>{preview.totalContributions}</strong> aportaciones en total
+                {!paysOnOwnTurn && ' (no aportas tu turno)'}.
+              </li>
+              <li>
+                Cobras tu pozo de <strong>{formatMoney(preview.pot)}</strong> el{' '}
+                <strong>{formatDayLabel(preview.payoutDate)}</strong>.
+              </li>
+              <li className="tanda-summary-net">
+                Das {formatMoney(preview.commitment)} en total y recibes {formatMoney(preview.pot)} (neto $0).
+              </li>
+            </ul>
+          </div>
         )}
 
         <div className="sheet-actions">

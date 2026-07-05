@@ -34,6 +34,41 @@ export default function Movements() {
     [categories, type]
   )
 
+  // Cuántos movimientos tiene cada categoría con los filtros activos (menos el
+  // de categoría, que es justo el que se está eligiendo). Sirve para marcar con
+  // un "LED" las que sí tienen movimientos y ordenar el selector por cantidad.
+  const categoryCounts = useMemo(() => {
+    const term = search.trim().toLowerCase()
+    const counts = new Map()
+    for (const e of expenses) {
+      const eType = e.type ?? 'expense'
+      if (type !== 'all' && eType !== type) continue
+      if (accountId !== 'all' && (e.account ?? '') !== accountId) continue
+      if (month !== 'all' && monthOf(e.date) !== month) continue
+      if (term) {
+        const cat = getCategory(e.category)
+        const sub = getSubcategory(e.category, e.subcategory)
+        const hay = `${e.note ?? ''} ${cat.name} ${sub?.name ?? ''}`.toLowerCase()
+        if (!hay.includes(term)) continue
+      }
+      if (!e.category) continue
+      counts.set(e.category, (counts.get(e.category) ?? 0) + 1)
+    }
+    return counts
+  }, [expenses, type, accountId, month, search, getCategory, getSubcategory])
+
+  // Selector ordenado: primero las de más movimientos; las vacías al final.
+  const sortedCategoryOptions = useMemo(
+    () =>
+      [...categoryOptions].sort((a, b) => {
+        const ca = categoryCounts.get(a.id) ?? 0
+        const cb = categoryCounts.get(b.id) ?? 0
+        if (cb !== ca) return cb - ca
+        return a.name.localeCompare(b.name)
+      }),
+    [categoryOptions, categoryCounts]
+  )
+
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     return expenses.filter((e) => {
@@ -160,11 +195,14 @@ export default function Movements() {
       <div className="filter-row">
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value="all">Todas las categorías</option>
-          {categoryOptions.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.icon} {c.name}
-            </option>
-          ))}
+          {sortedCategoryOptions.map((c) => {
+            const count = categoryCounts.get(c.id) ?? 0
+            return (
+              <option key={c.id} value={c.id}>
+                {count > 0 ? '🟢' : '⚪'} {c.icon} {c.name}{count > 0 ? ` (${count})` : ''}
+              </option>
+            )
+          })}
         </select>
         <select value={month} onChange={(e) => setMonth(e.target.value)}>
           <option value="all">Todos los meses</option>

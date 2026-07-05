@@ -34,12 +34,12 @@ export default function Movements() {
     [categories, type]
   )
 
-  // Cuántos movimientos tiene cada categoría con los filtros activos (menos el
-  // de categoría, que es justo el que se está eligiendo). Sirve para marcar con
-  // un "LED" las que sí tienen movimientos y ordenar el selector por cantidad.
-  const categoryCounts = useMemo(() => {
+  // Cuánto dinero movió cada categoría con los filtros activos (menos el de
+  // categoría, que es justo el que se está eligiendo). Sirve para marcar con
+  // un "LED" las que sí tuvieron flujo y ordenar el selector por monto.
+  const categoryTotals = useMemo(() => {
     const term = search.trim().toLowerCase()
-    const counts = new Map()
+    const totals = new Map()
     for (const e of expenses) {
       const eType = e.type ?? 'expense'
       if (type !== 'all' && eType !== type) continue
@@ -52,21 +52,21 @@ export default function Movements() {
         if (!hay.includes(term)) continue
       }
       if (!e.category) continue
-      counts.set(e.category, (counts.get(e.category) ?? 0) + 1)
+      totals.set(e.category, (totals.get(e.category) ?? 0) + e.amount)
     }
-    return counts
+    return totals
   }, [expenses, type, accountId, month, search, getCategory, getSubcategory])
 
-  // Selector ordenado: primero las de más movimientos; las vacías al final.
+  // Selector ordenado: primero las de mayor flujo de dinero; las vacías al final.
   const sortedCategoryOptions = useMemo(
     () =>
       [...categoryOptions].sort((a, b) => {
-        const ca = categoryCounts.get(a.id) ?? 0
-        const cb = categoryCounts.get(b.id) ?? 0
-        if (cb !== ca) return cb - ca
+        const ta = categoryTotals.get(a.id) ?? 0
+        const tb = categoryTotals.get(b.id) ?? 0
+        if (tb !== ta) return tb - ta
         return a.name.localeCompare(b.name)
       }),
-    [categoryOptions, categoryCounts]
+    [categoryOptions, categoryTotals]
   )
 
   const filtered = useMemo(() => {
@@ -196,10 +196,10 @@ export default function Movements() {
         <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
           <option value="all">Todas las categorías</option>
           {sortedCategoryOptions.map((c) => {
-            const count = categoryCounts.get(c.id) ?? 0
+            const total = categoryTotals.get(c.id) ?? 0
             return (
               <option key={c.id} value={c.id}>
-                {count > 0 ? '🟢' : '⚪'} {c.icon} {c.name}{count > 0 ? ` (${count})` : ''}
+                {total > 0 ? '🟢' : '⚪'} {c.icon} {c.name}{total > 0 ? ` (${formatMoney(total)})` : ''}
               </option>
             )
           })}

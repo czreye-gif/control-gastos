@@ -303,6 +303,11 @@ function nextRenewal(t, today) {
   return d
 }
 
+// Días de antelación con que empieza a avisarse una renovación próxima. El
+// aviso se repite a diario (se silencia solo por el día en que lo cierras)
+// para dar margen a cancelar la suscripción antes de que se cobre.
+const RENEWAL_ALERT_DAYS = 7
+
 export function RecurringAlerts() {
   const { recurring, updateRecurring } = useRecurring()
   const { getCategory } = useCategories()
@@ -321,7 +326,7 @@ export function RecurringAlerts() {
         const days = Math.round((new Date(date + 'T00:00:00') - new Date(today + 'T00:00:00')) / 86400000)
         return { t, date, days }
       })
-      .filter((x) => x.days >= 1 && x.days <= 5)
+      .filter((x) => x.days >= 1 && x.days <= RENEWAL_ALERT_DAYS)
       .sort((a, b) => a.days - b.days)
   }, [recurring, today, closed])
 

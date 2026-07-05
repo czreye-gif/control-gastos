@@ -15,6 +15,25 @@ export default function NavBar() {
     logout()
   }
 
+  // "Matar" la app: borra cualquier caché del navegador (Cache Storage y
+  // service workers, por si algún día se agregan) y recarga con un parámetro
+  // único en la URL para forzar que pida todo de nuevo al servidor en vez de
+  // reusar el HTML/JS viejo que tenía guardado localmente.
+  const handleForceRefresh = async () => {
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map((r) => r.unregister()))
+      }
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+    } finally {
+      window.location.href = `${window.location.pathname}?refresh=${Date.now()}`
+    }
+  }
+
   return (
     <>
       <nav className="navbar">
@@ -54,6 +73,13 @@ export default function NavBar() {
                 </p>
               </div>
             </div>
+
+            <button className="btn-ghost account-sheet-refresh" onClick={handleForceRefresh}>
+              🔄 Forzar actualización de la app
+            </button>
+            <p className="account-sheet-refresh-hint">
+              Úsalo si hiciste cambios recientes y no se ven todavía.
+            </p>
 
             <div className="account-sheet-actions">
               <button className="btn-ghost account-sheet-btn" onClick={() => setShowSheet(false)}>

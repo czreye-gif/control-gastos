@@ -1860,6 +1860,18 @@ input, select {
   flex-shrink: 0;
 }
 
+.account-sheet-refresh {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.account-sheet-refresh-hint {
+  margin: 0 0 14px;
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .account-sheet-actions {
   display: flex;
   gap: 10px;

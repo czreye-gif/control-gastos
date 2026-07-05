@@ -166,11 +166,10 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
               <span>{c.name}</span>
             </button>
           ))}
-          <button type="button" className="category-chip edit-chip" onClick={goToCategories}>
-            <span className="category-icon">✏️</span>
-            <span>Editar</span>
-          </button>
         </div>
+        <button type="button" className="edit-categories-btn" onClick={goToCategories}>
+          ✏️ Editar categorías y subcategorías
+        </button>
 
         {subcategories.length > 0 && (
           <>

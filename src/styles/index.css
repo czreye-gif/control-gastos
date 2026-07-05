@@ -506,9 +506,20 @@ input, select {
   font-size: 22px;
 }
 
-.edit-chip {
-  border-style: dashed;
+.edit-categories-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px dashed var(--border);
+  background: transparent;
   color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 14px;
 }
 
 /* Favoritos: botón que abre el modal con los movimientos más repetidos */
@@ -835,6 +846,17 @@ input, select {
 .sheet h2 {
   margin: 0 0 14px;
   font-size: 18px;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sheet-head h2 {
+  margin: 0;
 }
 
 /* Category editor */

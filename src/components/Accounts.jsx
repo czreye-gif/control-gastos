@@ -105,7 +105,10 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>Depositar en {piggy.name}</h2>
+        <div className="sheet-head">
+          <h2>Depositar en {piggy.name}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
 
         <p className="picker-label">Monto</p>
         <div className="amount-input-wrap">
@@ -183,7 +186,10 @@ export function AccountEditor({ initial, variant = 'account', onSave, onDelete, 
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>{initial ? `Editar ${noun}` : `Nueva ${noun}`}</h2>
+        <div className="sheet-head">
+          <h2>{initial ? `Editar ${noun}` : `Nueva ${noun}`}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
 
         <div className="preview-chip" style={{ '--chip-color': color }}>
           <span className="category-icon">{icon}</span>

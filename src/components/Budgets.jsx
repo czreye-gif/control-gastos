@@ -164,9 +164,12 @@ function BudgetEditor({ category, initialAmount, onSave, onRemove, onClose }) {
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
-        <h2>
-          {category.icon} {category.name}
-        </h2>
+        <div className="sheet-head">
+          <h2>
+            {category.icon} {category.name}
+          </h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
         <p className="picker-label">Límite mensual</p>
         <div className="amount-input-wrap">
           <span className="amount-prefix">$</span>

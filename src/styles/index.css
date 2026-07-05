@@ -511,101 +511,20 @@ input, select {
   color: var(--muted);
 }
 
-/* Favoritos: atajo de un toque para movimientos que se repiten seguido */
-.favorites-section {
-  margin-bottom: 14px;
-}
-
-.picker-label-row {
+/* Favoritos: botón que abre el modal con los movimientos más repetidos */
+.favorites-trigger {
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-}
-
-.picker-label-row .picker-label {
-  margin: 0;
-}
-
-.favorites-row {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  margin-top: 6px;
-}
-
-.favorite-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
-  min-width: 84px;
-  padding: 8px 10px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--card-2);
-  color: var(--text);
-  position: relative;
-}
-
-.favorite-chip-icon {
-  font-size: 18px;
-}
-
-.favorite-chip-name {
-  font-size: 12px;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px dashed var(--green);
+  background: var(--green-light);
+  color: var(--green);
   font-weight: 600;
-  white-space: nowrap;
-}
-
-.favorite-chip-amount {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.favorite-chip-add {
-  border-style: dashed;
-  color: var(--muted);
-  justify-content: center;
-}
-
-.favorite-chip-add:disabled {
-  opacity: 0.5;
-}
-
-.favorite-chip.removing {
-  border-color: var(--danger);
-}
-
-.favorite-remove {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  background: var(--danger);
-  color: #fff;
-  font-size: 10px;
-}
-
-.favorite-naming {
-  margin-top: 10px;
-}
-
-.favorite-naming-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.favorite-naming-actions .btn-danger,
-.favorite-naming-actions .btn-primary {
-  flex: 1;
-  margin-bottom: 0;
+  margin-bottom: 14px;
 }
 
 .note-input, .date-input {

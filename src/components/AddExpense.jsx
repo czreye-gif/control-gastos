@@ -1,18 +1,17 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
-import { useFavorites } from '../utils/useFavorites'
+import { computeFrequentMovements } from '../utils/favorites'
 import { todayISO } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '00', '0', 'back']
 
-export default function AddExpense({ initial, onSave, onDelete, onClose }) {
-  const { categories, getCategory } = useCategories()
+export default function AddExpense({ initial, expenses, onSave, onDelete, onClose }) {
+  const { categories, getCategory, getSubcategory } = useCategories()
   const { accounts } = useAccounts()
-  const { favorites, addFavorite, deleteFavorite } = useFavorites()
   const confirm = useConfirm()
   const navigate = useNavigate()
   // El monto se maneja en centavos, como en las terminales bancarias:
@@ -25,9 +24,15 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   const [date, setDate] = useState(initial?.date ?? todayISO())
   const [account, setAccount] = useState(initial?.account ?? '')
   const [saving, setSaving] = useState(false)
-  const [removingFavorites, setRemovingFavorites] = useState(false)
-  const [namingFavorite, setNamingFavorite] = useState(false)
-  const [favoriteName, setFavoriteName] = useState('')
+  const [showFavorites, setShowFavorites] = useState(false)
+
+  // Favoritos = movimientos que ya se repitieron 2+ veces con el mismo
+  // monto, categoría, subcategoría y cuenta. No se crean a mano: salen solos
+  // del historial real, así el módulo no se llena de plantillas manuales.
+  const frequentMovements = useMemo(
+    () => computeFrequentMovements(expenses ?? [], type),
+    [expenses, type]
+  )
 
   const amount = cents / 100
   const canSave = cents > 0 && category
@@ -57,8 +62,8 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
     setSubcategory('')
   }
 
-  // Llena todo el formulario con la plantilla del favorito de un solo toque;
-  // el usuario solo confirma (o ajusta) fecha/nota antes de guardar.
+  // Llena todo el formulario con el favorito elegido de un solo toque;
+  // el usuario solo confirma (o ajusta) fecha antes de guardar.
   const applyFavorite = (f) => {
     setCents(Math.round(f.amount * 100))
     setType(f.type || 'expense')
@@ -66,36 +71,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
     setSubcategory(f.subcategory || '')
     setNote(f.note || '')
     setAccount(f.account || '')
-  }
-
-  const startSaveFavorite = () => {
-    if (!canSave) return
-    setFavoriteName(getCategory(category).name)
-    setNamingFavorite(true)
-  }
-
-  const confirmSaveFavorite = () => {
-    const name = favoriteName.trim()
-    if (!name) return
-    addFavorite({
-      name,
-      amount,
-      type,
-      category,
-      subcategory: subcategory || null,
-      note: note.trim(),
-      account: account || null,
-    })
-    setNamingFavorite(false)
-    setFavoriteName('')
-  }
-
-  const askDeleteFavorite = async (f) => {
-    const ok = await confirm({
-      title: 'Eliminar favorito',
-      message: `Se quitará "${f.name}" de tus favoritos.`,
-    })
-    if (ok) deleteFavorite(f.id)
+    setShowFavorites(false)
   }
 
   const handleSave = () => {
@@ -131,6 +107,7 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
   }
 
   return (
+    <>
     <div className="modal-backdrop" onClick={saving ? undefined : onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-sticky">
@@ -162,70 +139,10 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
         </div>
 
         <div className="modal-body">
-        {!initial && (
-          <div className="favorites-section">
-            <div className="picker-label-row">
-              <p className="picker-label">Favoritos</p>
-              {favorites.length > 0 && (
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() => setRemovingFavorites((v) => !v)}
-                >
-                  {removingFavorites ? 'Listo' : 'Editar'}
-                </button>
-              )}
-            </div>
-            <div className="favorites-row">
-              {favorites.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  className={`favorite-chip ${removingFavorites ? 'removing' : ''}`}
-                  onClick={() => (removingFavorites ? askDeleteFavorite(f) : applyFavorite(f))}
-                >
-                  {removingFavorites && <span className="favorite-remove">✕</span>}
-                  <span className="favorite-chip-icon">{getCategory(f.category).icon}</span>
-                  <span className="favorite-chip-name">{f.name}</span>
-                  <span className="favorite-chip-amount">{formatMoney(f.amount)}</span>
-                </button>
-              ))}
-              <button
-                type="button"
-                className="favorite-chip favorite-chip-add"
-                onClick={startSaveFavorite}
-                disabled={!canSave}
-              >
-                <span className="favorite-chip-icon">＋</span>
-                <span className="favorite-chip-name">Guardar actual</span>
-              </button>
-            </div>
-            {namingFavorite && (
-              <div className="favorite-naming">
-                <input
-                  className="note-input"
-                  autoFocus
-                  type="text"
-                  placeholder="Nombre del favorito (ej. Café mañana)"
-                  value={favoriteName}
-                  onChange={(e) => setFavoriteName(e.target.value)}
-                />
-                <div className="favorite-naming-actions">
-                  <button type="button" className="btn-danger" onClick={() => setNamingFavorite(false)}>
-                    Cancelar
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    disabled={!favoriteName.trim()}
-                    onClick={confirmSaveFavorite}
-                  >
-                    Guardar favorito
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+        {!initial && frequentMovements.length > 0 && (
+          <button type="button" className="favorites-trigger" onClick={() => setShowFavorites(true)}>
+            ⭐ Elegir un favorito
+          </button>
         )}
 
         <div className="keypad">
@@ -319,6 +236,60 @@ export default function AddExpense({ initial, onSave, onDelete, onClose }) {
             {saving ? 'Guardando…' : 'Guardar'}
           </button>
         </div>
+        </div>
+      </div>
+    </div>
+
+    {showFavorites && (
+      <FavoritesPicker
+        items={frequentMovements}
+        accounts={accounts}
+        getCategory={getCategory}
+        getSubcategory={getSubcategory}
+        onSelect={applyFavorite}
+        onClose={() => setShowFavorites(false)}
+      />
+    )}
+    </>
+  )
+}
+
+function FavoritesPicker({ items, accounts, getCategory, getSubcategory, onSelect, onClose }) {
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-sticky">
+          <div className="modal-head">
+            <h2>Favoritos</h2>
+            <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+          </div>
+          <p className="picker-label">Tus movimientos más repetidos. Toca uno para llenarlo.</p>
+        </div>
+        <div className="modal-body">
+          {items.map((f, i) => {
+            const cat = getCategory(f.category)
+            const sub = getSubcategory(f.category, f.subcategory)
+            const acc = accounts.find((a) => a.id === f.account)
+            return (
+              <button key={i} type="button" className="expense-item" onClick={() => onSelect(f)}>
+                <span className="expense-icon" style={{ background: cat.color + '22', color: cat.color }}>
+                  {cat.icon}
+                </span>
+                <span className="expense-info">
+                  <span className="expense-category">
+                    {cat.name}
+                    {sub && <span className="expense-subcategory"> · {sub.name}</span>}
+                  </span>
+                  <span className="expense-note">
+                    {acc ? `${acc.icon} ${acc.name} · ` : ''}{f.count}× registrado
+                  </span>
+                </span>
+                <span className={`expense-amount ${f.type === 'income' ? 'income' : ''}`}>
+                  {f.type === 'income' ? '+' : '-'}{formatMoney(f.amount)}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

@@ -146,9 +146,9 @@ export default function Ahorros() {
               accounts={accounts}
               movements={tandaMovementsMap.get(t.id) ?? []}
               onEdit={() => setEditingTanda(t)}
-              onContribute={(date) => registerContribution(t, date)}
+              onContribute={(date, account) => registerContribution(t, date, account)}
               onUndoContribute={() => undoContribution(t)}
-              onPayout={(date) => registerPayout(t, date)}
+              onPayout={(date, account) => registerPayout(t, date, account)}
               onUndoPayout={() => undoPayout(t)}
             />
           ))}

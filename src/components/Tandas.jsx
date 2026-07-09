@@ -453,9 +453,10 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
   )
 }
 
-export function TandaMovementEditor({ expense, onSave, onClose }) {
+export function TandaMovementEditor({ expense, accounts, onSave, onClose }) {
   const [date, setDate] = useState(expense.date)
   const [note, setNote] = useState(expense.note ?? '')
+  const [accountId, setAccountId] = useState(expense.account ?? '')
   const isIncome = expense.type === 'income'
 
   return (
@@ -470,6 +471,24 @@ export function TandaMovementEditor({ expense, onSave, onClose }) {
         <div className="register-amount" style={{ color: isIncome ? '#22c55e' : '#ef4444' }}>
           {isIncome ? '+' : '−'}{formatMoney(expense.amount)}
         </div>
+
+        {accounts && accounts.length > 0 && (
+          <>
+            <p className="picker-label">Cuenta</p>
+            <div className="subcategory-picker">
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`subcategory-chip ${accountId === a.id ? 'selected' : ''}`}
+                  onClick={() => setAccountId(accountId === a.id ? '' : a.id)}
+                >
+                  {a.icon} {a.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <p className="picker-label">Fecha</p>
         <input
@@ -491,7 +510,11 @@ export function TandaMovementEditor({ expense, onSave, onClose }) {
 
         <div className="sheet-actions">
           <button className="btn-ghost" onClick={onClose}>Cancelar</button>
-          <button className="btn-primary" disabled={!date} onClick={() => onSave({ date, note: note.trim() || null })}>
+          <button
+            className="btn-primary"
+            disabled={!date}
+            onClick={() => onSave({ date, note: note.trim() || null, account: accountId || null })}
+          >
             Guardar
           </button>
         </div>

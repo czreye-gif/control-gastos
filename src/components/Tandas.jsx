@@ -128,10 +128,11 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, on
           title="Registrar aportación"
           amount={tanda.amount}
           defaultDate={d.nextDate ?? todayISO()}
-          accountName={account?.name}
+          defaultAccount={tanda.account}
+          accounts={accounts}
           confirmText="Registrar"
-          onConfirm={(date) => {
-            onContribute(date)
+          onConfirm={(date, accountId) => {
+            onContribute(date, accountId)
             setSheet(null)
           }}
           onClose={() => setSheet(null)}
@@ -142,10 +143,11 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, on
           title="Registrar cobro del pozo"
           amount={d.pot}
           defaultDate={d.payoutDate <= todayISO() ? d.payoutDate : todayISO()}
-          accountName={account?.name}
+          defaultAccount={tanda.account}
+          accounts={accounts}
           confirmText="Cobrar"
-          onConfirm={(date) => {
-            onPayout(date)
+          onConfirm={(date, accountId) => {
+            onPayout(date, accountId)
             setSheet(null)
           }}
           onClose={() => setSheet(null)}
@@ -155,9 +157,10 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, on
   )
 }
 
-// Hojita para registrar aportación/cobro con fecha ajustable.
-function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, onConfirm, onClose }) {
+// Hojita para registrar aportación/cobro con fecha y cuenta seleccionables.
+function RegisterSheet({ title, amount, defaultDate, defaultAccount, accounts, confirmText, onConfirm, onClose }) {
   const [date, setDate] = useState(defaultDate)
+  const [accountId, setAccountId] = useState(defaultAccount ?? '')
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -168,10 +171,25 @@ function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, o
           <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
 
-        <div className="register-amount">
-          {formatMoney(amount)}
-          {accountName && <span className="register-account"> · {accountName}</span>}
-        </div>
+        <div className="register-amount">{formatMoney(amount)}</div>
+
+        {accounts && accounts.length > 0 && (
+          <>
+            <p className="picker-label">Cuenta</p>
+            <div className="subcategory-picker">
+              {accounts.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`subcategory-chip ${accountId === a.id ? 'selected' : ''}`}
+                  onClick={() => setAccountId(accountId === a.id ? '' : a.id)}
+                >
+                  {a.icon} {a.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <p className="picker-label">Fecha</p>
         <input
@@ -183,7 +201,7 @@ function RegisterSheet({ title, amount, defaultDate, accountName, confirmText, o
         />
 
         <div className="sheet-actions">
-          <button className="btn-primary" disabled={!date} onClick={() => onConfirm(date)}>
+          <button className="btn-primary" disabled={!date} onClick={() => onConfirm(date, accountId || null)}>
             {confirmText}
           </button>
         </div>

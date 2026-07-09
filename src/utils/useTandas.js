@@ -129,14 +129,14 @@ export function useTandas() {
     if (matching[0]) await deleteDoc(matching[0].ref)
   }
 
-  const registerContribution = async (t, date) => {
+  const registerContribution = async (t, date, account) => {
     const { totalContributions, paid } = tandaDerived(t)
     if (paid >= totalContributions) return
     await addTransfer({
       amount: t.amount,
       type: 'expense',
       note: `Tanda: ${t.name}`,
-      account: t.account,
+      account: account !== undefined ? account : t.account,
       tandaId: t.id,
       date,
     })
@@ -150,14 +150,14 @@ export function useTandas() {
     await updateTanda(t.id, { paidCount: paid - 1 })
   }
 
-  const registerPayout = async (t, date) => {
+  const registerPayout = async (t, date, account) => {
     if (t.payoutReceived) return
     const { pot } = tandaDerived(t)
     await addTransfer({
       amount: pot,
       type: 'income',
       note: `Tanda ${t.name}: cobro`,
-      account: t.account,
+      account: account !== undefined ? account : t.account,
       tandaId: t.id,
       date,
     })

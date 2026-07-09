@@ -13,7 +13,6 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
   const { categories, getCategory, getSubcategory } = useCategories()
   const { accounts } = useAccounts()
   const confirm = useConfirm()
-  const navigate = useNavigate()
   // El monto se maneja en centavos, como en las terminales bancarias:
   // cada dígito que tecleas se acomoda desde la derecha.
   const [cents, setCents] = useState(initial ? Math.round(initial.amount * 100) : 0)

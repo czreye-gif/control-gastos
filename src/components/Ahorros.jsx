@@ -34,6 +34,18 @@ export default function Ahorros() {
   )
   const regularAccounts = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
 
+  // Agrupa los movimientos de tanda por tandaId para pasarlos a cada TandaCard.
+  const tandaMovementsMap = useMemo(() => {
+    const map = new Map()
+    for (const e of expenses) {
+      if (e.tandaId) {
+        if (!map.has(e.tandaId)) map.set(e.tandaId, [])
+        map.get(e.tandaId).push(e)
+      }
+    }
+    return map
+  }, [expenses])
+
   const savePiggy = async (data) => {
     if (editingPiggy && editingPiggy !== 'new') await updateAccount(editingPiggy.id, data)
     else await addAccount(data)
@@ -132,6 +144,7 @@ export default function Ahorros() {
               key={t.id}
               tanda={t}
               accounts={accounts}
+              movements={tandaMovementsMap.get(t.id) ?? []}
               onEdit={() => setEditingTanda(t)}
               onContribute={(date) => registerContribution(t, date)}
               onUndoContribute={() => undoContribution(t)}

@@ -3,6 +3,7 @@ import ExpenseList, { formatMoney } from './ExpenseList'
 import ReorderableExpenseList from './ReorderableExpenseList'
 import AddExpense from './AddExpense'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
+import { TandaMovementEditor } from './Tandas'
 import { useExpenses } from '../utils/useExpenses'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useAccounts } from '../utils/useAccounts'
@@ -24,6 +25,7 @@ export default function Movements() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [editing, setEditing] = useState(null)
   const [editingTransfer, setEditingTransfer] = useState(null)
+  const [editingTandaMovement, setEditingTandaMovement] = useState(null)
   const [reorderMode, setReorderMode] = useState(false)
 
   // Meses disponibles a partir de los datos reales (no un rango fijo).
@@ -285,6 +287,7 @@ export default function Movements() {
             accounts={accounts}
             onSelect={(expense) => setEditing(expense)}
             onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
+            onSelectTandaMovement={(exp) => setEditingTandaMovement(exp)}
           />
           {hasMore && (
             <button className="load-more-btn" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
@@ -305,6 +308,18 @@ export default function Movements() {
 
       {editingTransfer && (
         <EditTransferSheet transfer={editingTransfer} onClose={() => setEditingTransfer(null)} />
+      )}
+
+      {editingTandaMovement && (
+        <TandaMovementEditor
+          expense={editingTandaMovement}
+          onSave={async (data) => {
+            const op = updateExpense(editingTandaMovement.id, data)
+            setEditingTandaMovement(null)
+            try { await op } catch (e) { console.error('Error al guardar movimiento de tanda:', e) }
+          }}
+          onClose={() => setEditingTandaMovement(null)}
+        />
       )}
     </div>
   )

@@ -26,8 +26,9 @@ function moveWithinDay(list, dragId, overId) {
 // Lista de movimientos con agarre ≡ para reordenar dentro del mismo día
 // mediante arrastre por punteros (funciona con dedo en móvil). Al soltar,
 // avisa al padre con los items del día en su nuevo orden para persistirlo.
-export default function ReorderableExpenseList({ expenses, onReorderDay }) {
+export default function ReorderableExpenseList({ expenses, accounts, onReorderDay }) {
   const { getCategory, getSubcategory } = useCategories()
+  const accountsMap = new Map((accounts ?? []).map((a) => [a.id, a]))
   const [list, setList] = useState(expenses)
   const dragId = useRef(null)
   const dragDay = useRef(null)
@@ -85,6 +86,7 @@ export default function ReorderableExpenseList({ expenses, onReorderDay }) {
             const sub = getSubcategory(expense.category, expense.subcategory)
             const isIncome = expense.type === 'income'
             const isTransfer = expense.transfer
+            const owner = isTransfer ? accountsMap.get(expense.account) : null
             return (
               <div
                 key={expense.id}
@@ -113,10 +115,12 @@ export default function ReorderableExpenseList({ expenses, onReorderDay }) {
                 )}
                 <span className="expense-info">
                   <span className="expense-category">
-                    {isTransfer ? expense.note || 'Traspaso' : cat.name}
+                    {isTransfer ? (owner ? `${owner.icon} ${owner.name}` : expense.note || 'Traspaso') : cat.name}
                     {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
                   </span>
-                  {!isTransfer && expense.note && <span className="expense-note">{expense.note}</span>}
+                  {isTransfer
+                    ? owner && <span className="expense-note">{expense.note || 'Traspaso'}</span>
+                    : expense.note && <span className="expense-note">{expense.note}</span>}
                 </span>
                 <span className={`expense-amount ${isIncome ? 'income' : ''}`}>
                   {isIncome ? '+' : '-'}

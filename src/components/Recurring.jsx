@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
+import Categories from './Categories'
 import { useRecurring, dueOccurrences } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
@@ -186,7 +187,6 @@ function ApplySheet({ t, accounts, commitOne, onClose }) {
 function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const { categories, getCategory } = useCategories()
   const confirm = useConfirm()
-  const navigate = useNavigate()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [type, setType] = useState(initial?.type ?? 'expense')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -194,6 +194,7 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const [note, setNote] = useState(initial?.note ?? '')
   const [day, setDay] = useState(initial?.dayOfMonth ?? 1)
   const [account, setAccount] = useState(initial?.account ?? '')
+  const [showCategories, setShowCategories] = useState(false)
 
   const visibleCategories = categories.filter((c) => c.type === type)
   const subcategories = category ? getCategory(category).subcategories ?? [] : []
@@ -202,10 +203,7 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
 
   const selectType = (t) => { setType(t); setCategory(''); setSubcategory('') }
 
-  const goToCategories = () => {
-    onClose()
-    navigate('/categorias')
-  }
+  const goToCategories = () => setShowCategories(true)
 
   const handleSave = () => {
     if (!canSave) return
@@ -219,6 +217,7 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   }
 
   return (
+    <>
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
@@ -293,6 +292,13 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
         </div>
       </div>
     </div>
+
+    {showCategories && (
+      <div className="categories-overlay">
+        <Categories onBack={() => setShowCategories(false)} initialType={type} />
+      </div>
+    )}
+  </>
   )
 }
 

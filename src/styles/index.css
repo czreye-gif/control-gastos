@@ -1287,13 +1287,13 @@ input, select {
 
 .reorder-item {
   gap: 8px;
-  touch-action: pan-y;
 }
 
 .reorder-handle {
   flex-shrink: 0;
   font-size: 22px;
   line-height: 1;
+  touch-action: none;
   color: var(--muted);
   padding: 4px 8px;
   cursor: grab;

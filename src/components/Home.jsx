@@ -278,6 +278,7 @@ export default function Home() {
       ) : (
         <ExpenseList
           expenses={expenses}
+          accounts={accounts}
           onSelect={(expense) => {
             setEditing(expense)
             setShowAdd(true)

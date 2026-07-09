@@ -1,8 +1,10 @@
 import { useCategories } from '../contexts/CategoriesContext'
 import { formatDayLabel } from '../utils/dates'
 
-export default function ExpenseList({ expenses, onSelect, onSelectTransfer }) {
+export default function ExpenseList({ expenses, onSelect, onSelectTransfer, accounts }) {
   const { getCategory, getSubcategory } = useCategories()
+  // Mapa de cuentas para poder decir a qué cuenta pertenece cada traspaso.
+  const accountsMap = new Map((accounts ?? []).map((a) => [a.id, a]))
 
   if (expenses.length === 0) {
     return (
@@ -31,6 +33,10 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer }) {
             // Solo los traspasos entre cuentas (con transferId) son editables;
             // los depósitos a alcancías / tandas siguen sin abrir nada.
             const editableTransfer = isTransfer && expense.transferId && onSelectTransfer
+            // En un traspaso, este renglón pertenece a `expense.account`. Se
+            // muestra esa cuenta como título para dejar claro cuál subió/bajó,
+            // y la dirección ("Traspaso a/de …") como subtítulo.
+            const owner = isTransfer ? accountsMap.get(expense.account) : null
             return (
               <button
                 key={expense.id}
@@ -50,11 +56,11 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer }) {
                 )}
                 <span className="expense-info">
                   <span className="expense-category">
-                    {isTransfer ? expense.note || 'Traspaso' : cat.name}
+                    {isTransfer ? (owner ? `${owner.icon} ${owner.name}` : expense.note || 'Traspaso') : cat.name}
                     {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
                   </span>
                   {isTransfer ? (
-                    <span className="expense-note">Traspaso</span>
+                    <span className="expense-note">{owner ? expense.note || 'Traspaso' : 'Traspaso'}</span>
                   ) : (
                     expense.note && <span className="expense-note">{expense.note}</span>
                   )}

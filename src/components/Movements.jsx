@@ -275,13 +275,14 @@ export default function Movements() {
       {loading ? (
         <p className="loading-text">Cargando...</p>
       ) : reorderMode ? (
-        <ReorderableExpenseList expenses={expenses} onReorderDay={reorderDay} />
+        <ReorderableExpenseList expenses={expenses} accounts={accounts} onReorderDay={reorderDay} />
       ) : filtered.length === 0 ? (
         <p className="empty-state">No hay movimientos que coincidan con la búsqueda.</p>
       ) : (
         <>
           <ExpenseList
             expenses={visible}
+            accounts={accounts}
             onSelect={(expense) => setEditing(expense)}
             onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
           />

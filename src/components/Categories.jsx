@@ -4,7 +4,7 @@ import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS, ICON_GROUPS } from '../utils/categories'
 
-export default function Categories() {
+export default function Categories({ onBack }) {
   const {
     categories,
     addCategory,
@@ -16,6 +16,7 @@ export default function Categories() {
   } = useCategories()
   const navigate = useNavigate()
   const confirm = useConfirm()
+  const back = onBack ?? (() => navigate(-1))
   const [type, setType] = useState('expense')
   const [editing, setEditing] = useState(null) // null | 'new' | categoría
   const [repairing, setRepairing] = useState(false)
@@ -69,7 +70,7 @@ export default function Categories() {
   return (
     <div className="page">
       <header className="sub-header">
-        <button className="icon-btn" onClick={() => navigate('/')} aria-label="Volver">
+        <button className="icon-btn" onClick={back} aria-label="Volver">
           ←
         </button>
         <h1>Categorías</h1>

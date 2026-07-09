@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useCategories } from '../contexts/CategoriesContext'
+import Categories from './Categories'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
 import { computeFrequentMovements } from '../utils/favorites'
@@ -25,6 +25,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
   const [account, setAccount] = useState(initial?.account ?? '')
   const [saving, setSaving] = useState(false)
   const [showFavorites, setShowFavorites] = useState(false)
+  const [showCategories, setShowCategories] = useState(false)
 
   // Favoritos = movimientos que ya se repitieron 2+ veces con el mismo
   // monto, categoría, subcategoría y cuenta. No se crean a mano: salen solos
@@ -93,10 +94,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
     })
   }
 
-  const goToCategories = () => {
-    onClose()
-    navigate('/categorias')
-  }
+  const goToCategories = () => setShowCategories(true)
 
   const askDelete = async () => {
     const ok = await confirm({
@@ -248,6 +246,12 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
         onSelect={applyFavorite}
         onClose={() => setShowFavorites(false)}
       />
+    )}
+
+    {showCategories && (
+      <div className="categories-overlay">
+        <Categories onBack={() => setShowCategories(false)} />
+      </div>
     )}
     </>
   )

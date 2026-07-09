@@ -372,6 +372,15 @@ input, select {
   line-height: 0;
 }
 
+/* Full-screen overlay for inline sub-screens (e.g. category editor from within a modal) */
+.categories-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: var(--bg);
+  overflow-y: auto;
+}
+
 /* Centered modal (data entry) */
 .modal-backdrop {
   position: fixed;

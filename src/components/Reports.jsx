@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -16,13 +16,21 @@ import { useExpenses } from '../utils/useExpenses'
 import { useCategories } from '../contexts/CategoriesContext'
 import { currentMonthISO, formatMonthLabel, lastNMonths, monthOf } from '../utils/dates'
 import { formatMoney } from './ExpenseList'
+import { COLOR_OPTIONS } from '../utils/categories'
+
+// Paleta para subcategorías: alterna entre los colores disponibles.
+const SUB_COLORS = [...COLOR_OPTIONS, '#64748b', '#475569', '#94a3b8']
 
 export default function Reports() {
   const { expenses, loading } = useExpenses()
   const { categories } = useCategories()
   const [month, setMonth] = useState(currentMonthISO())
   const [type, setType] = useState('expense')
+  const [selectedCatId, setSelectedCatId] = useState(null)
   const months = useMemo(() => lastNMonths(6), [])
+
+  // Limpia la selección al cambiar tipo o mes.
+  useEffect(() => { setSelectedCatId(null) }, [type, month])
 
   const typeExpenses = useMemo(
     () => expenses.filter((e) => (e.type ?? 'expense') === type && !e.transfer),
@@ -44,6 +52,46 @@ export default function Reports() {
     }
     return typeCategories.map((c) => ({ ...c, value: map.get(c.id) ?? 0 })).filter((c) => c.value > 0)
   }, [monthExpenses, typeCategories])
+
+  // Limpia la selección si la categoría ya no existe en los datos del mes.
+  useEffect(() => {
+    if (selectedCatId && !byCategory.some((c) => c.id === selectedCatId)) {
+      setSelectedCatId(null)
+    }
+  }, [byCategory, selectedCatId])
+
+  const selectedCat = useMemo(
+    () => (selectedCatId ? byCategory.find((c) => c.id === selectedCatId) ?? null : null),
+    [selectedCatId, byCategory]
+  )
+
+  // Desglose de subcategorías para la categoría seleccionada.
+  const bySubcategory = useMemo(() => {
+    if (!selectedCatId) return []
+    const cat = typeCategories.find((c) => c.id === selectedCatId)
+    const subs = cat?.subcategories ?? []
+    const catExps = monthExpenses.filter((e) => e.category === selectedCatId)
+    const map = new Map()
+    for (const e of catExps) {
+      const key = e.subcategory ?? ''
+      map.set(key, (map.get(key) ?? 0) + e.amount)
+    }
+    return [...map.entries()]
+      .map(([subId, value], i) => {
+        const sub = subId ? subs.find((s) => s.id === subId) : null
+        return {
+          id: subId || '__none__',
+          name: sub ? sub.name : (subs.length === 0 ? cat?.name ?? 'Total' : 'Sin subcategoría'),
+          icon: sub?.icon ?? cat?.icon ?? '',
+          value,
+          color: SUB_COLORS[i % SUB_COLORS.length],
+        }
+      })
+      .filter((s) => s.value > 0)
+      .sort((a, b) => b.value - a.value)
+  }, [selectedCatId, monthExpenses, typeCategories])
+
+  const hasRealSubcategories = bySubcategory.some((s) => s.id !== '__none__')
 
   const byMonth = useMemo(() => {
     return months.map((m) => ({
@@ -76,6 +124,8 @@ export default function Reports() {
       gastos: sumInMonth(spendMovs, m),
     }))
   }, [incomeMovs, spendMovs, months])
+
+  const toggleCat = (id) => setSelectedCatId((prev) => (prev === id ? null : id))
 
   if (loading) return <p className="loading-text">Cargando...</p>
 
@@ -168,8 +218,9 @@ export default function Reports() {
         </p>
       ) : (
         <>
+          {/* Gráfico por categoría */}
           <section className="chart-card">
-            <h3>Por categoría</h3>
+            <h3>Por categoría <span className="chart-hint">Toca una categoría para ver el detalle</span></h3>
             <ResponsiveContainer width="100%" height={240}>
               <PieChart>
                 <Pie
@@ -179,9 +230,15 @@ export default function Reports() {
                   innerRadius={55}
                   outerRadius={90}
                   paddingAngle={2}
+                  onClick={(data) => toggleCat(data.id)}
+                  style={{ cursor: 'pointer' }}
                 >
                   {byCategory.map((c) => (
-                    <Cell key={c.id} fill={c.color} />
+                    <Cell
+                      key={c.id}
+                      fill={c.color}
+                      opacity={selectedCatId && selectedCatId !== c.id ? 0.35 : 1}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
@@ -191,17 +248,74 @@ export default function Reports() {
               </PieChart>
             </ResponsiveContainer>
             <ul className="legend-list">
-              {byCategory
+              {[...byCategory]
                 .sort((a, b) => b.value - a.value)
                 .map((c) => (
-                  <li key={c.id}>
+                  <li
+                    key={c.id}
+                    className={`legend-item-btn ${selectedCatId === c.id ? 'legend-item-active' : ''}`}
+                    onClick={() => toggleCat(c.id)}
+                  >
                     <span className="legend-dot" style={{ background: c.color }} />
                     <span>{c.icon} {c.name}</span>
                     <span className="legend-amount">{formatMoney(c.value)}</span>
+                    <span className="legend-chevron">{selectedCatId === c.id ? '▴' : '▾'}</span>
                   </li>
                 ))}
             </ul>
           </section>
+
+          {/* Gráfico por subcategoría (drill-down) */}
+          {selectedCat && (
+            <section className="chart-card subchart-card">
+              <div className="subchart-header">
+                <button className="icon-btn" onClick={() => setSelectedCatId(null)} aria-label="Cerrar">←</button>
+                <h3>
+                  <span style={{ color: selectedCat.color }}>{selectedCat.icon}</span>{' '}
+                  {selectedCat.name}
+                </h3>
+                <span className="subchart-total">{formatMoney(selectedCat.value)}</span>
+              </div>
+
+              {!hasRealSubcategories ? (
+                <p className="empty-state" style={{ fontSize: 13, marginTop: 8 }}>
+                  Esta categoría no tiene subcategorías registradas.
+                </p>
+              ) : (
+                <>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <PieChart>
+                      <Pie
+                        data={bySubcategory}
+                        dataKey="value"
+                        nameKey="name"
+                        innerRadius={50}
+                        outerRadius={85}
+                        paddingAngle={2}
+                      >
+                        {bySubcategory.map((s) => (
+                          <Cell key={s.id} fill={s.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: '#1a1d24', border: '1px solid #2a2e37', borderRadius: 8, color: '#e5e7eb' }}
+                        formatter={(value) => formatMoney(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <ul className="legend-list">
+                    {bySubcategory.map((s) => (
+                      <li key={s.id}>
+                        <span className="legend-dot" style={{ background: s.color }} />
+                        <span>{s.icon} {s.name}</span>
+                        <span className="legend-amount">{formatMoney(s.value)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </section>
+          )}
 
           <section className="chart-card">
             <h3>Últimos 6 meses</h3>

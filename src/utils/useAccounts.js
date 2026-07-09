@@ -4,11 +4,13 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
   orderBy,
   query,
   serverTimestamp,
   updateDoc,
+  where,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
@@ -86,17 +88,27 @@ export function useAccounts() {
     }
   }
 
+  // Nota de cada parte del traspaso. La nota "cruda" del usuario se guarda
+  // aparte en `transferNote` para poder reconstruirla al editar sin tener que
+  // parsear el texto visible.
+  const legNote = (dir, otherName, note) => {
+    const extra = note?.trim() ? ` · ${note.trim()}` : ''
+    return dir === 'out'
+      ? `Traspaso a ${otherName ?? 'otra cuenta'}${extra}`
+      : `Traspaso de ${otherName ?? 'otra cuenta'}${extra}`
+  }
+
   // Traspaso entre dos cuentas: sale dinero de una y entra en la otra. Se
   // registra como un par de movimientos marcados `transfer: true` (no cuentan
   // como gasto/ingreso) y ligados por un mismo `transferId` para poder
-  // deshacer el par completo después.
+  // editar o eliminar el par completo después.
   const transfer = async ({ from, to, amount, date, note }) => {
     if (!from || !to || from === to || !(amount > 0)) return
     const expRef = collection(db, 'users', user.uid, 'expenses')
     const when = date || todayISO()
     const fromAcc = accounts.find((a) => a.id === from)
     const toAcc = accounts.find((a) => a.id === to)
-    const extra = note?.trim() ? ` · ${note.trim()}` : ''
+    const cleanNote = note?.trim() || ''
     const transferId = crypto.randomUUID()
     await addDoc(expRef, {
       amount,
@@ -104,7 +116,8 @@ export function useAccounts() {
       transfer: true,
       category: null,
       subcategory: null,
-      note: `Traspaso a ${toAcc?.name ?? 'otra cuenta'}${extra}`,
+      note: legNote('out', toAcc?.name, cleanNote),
+      transferNote: cleanNote,
       date: when,
       account: from,
       transferId,
@@ -116,12 +129,46 @@ export function useAccounts() {
       transfer: true,
       category: null,
       subcategory: null,
-      note: `Traspaso de ${fromAcc?.name ?? 'otra cuenta'}${extra}`,
+      note: legNote('in', fromAcc?.name, cleanNote),
+      transferNote: cleanNote,
       date: when,
       account: to,
       transferId,
       createdAt: serverTimestamp(),
     })
+  }
+
+  // Edita las dos partes de un traspaso ya existente (monto, cuentas, fecha,
+  // nota). Busca los movimientos por `transferId` y actualiza la salida y la
+  // entrada de forma consistente.
+  const updateTransfer = async (transferId, { from, to, amount, date, note }) => {
+    if (!transferId || !from || !to || from === to || !(amount > 0)) return
+    const expCol = collection(db, 'users', user.uid, 'expenses')
+    const snap = await getDocs(query(expCol, where('transferId', '==', transferId)))
+    const when = date || todayISO()
+    const fromAcc = accounts.find((a) => a.id === from)
+    const toAcc = accounts.find((a) => a.id === to)
+    const cleanNote = note?.trim() || ''
+    await Promise.all(
+      snap.docs.map((d) => {
+        const isOut = (d.data().type ?? 'expense') === 'expense'
+        return updateDoc(d.ref, {
+          amount,
+          account: isOut ? from : to,
+          date: when,
+          note: legNote(isOut ? 'out' : 'in', isOut ? toAcc?.name : fromAcc?.name, cleanNote),
+          transferNote: cleanNote,
+        })
+      }),
+    )
+  }
+
+  // Elimina un traspaso completo (sus dos movimientos).
+  const deleteTransfer = async (transferId) => {
+    if (!transferId) return
+    const expCol = collection(db, 'users', user.uid, 'expenses')
+    const snap = await getDocs(query(expCol, where('transferId', '==', transferId)))
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)))
   }
 
   const updateAccount = (id, data) => {
@@ -132,7 +179,39 @@ export function useAccounts() {
     return deleteDoc(doc(db, 'users', user.uid, 'accounts', id))
   }
 
-  return { accounts, loading, addAccount, updateAccount, deleteAccount, deposit, transfer }
+  return {
+    accounts,
+    loading,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    deposit,
+    transfer,
+    updateTransfer,
+    deleteTransfer,
+  }
+}
+
+// Reconstruye los traspasos entre cuentas a partir de sus dos movimientos
+// ligados por `transferId`: la salida (expense) da la cuenta origen y la
+// entrada (income) la cuenta destino. Devuelve la lista ordenada por fecha
+// descendente. Solo incluye traspasos completos (con sus dos partes).
+export function computeTransfers(expenses) {
+  const groups = new Map()
+  for (const e of expenses) {
+    if (!e.transferId) continue
+    let g = groups.get(e.transferId)
+    if (!g) {
+      g = { transferId: e.transferId, amount: e.amount, date: e.date, note: e.transferNote ?? '' }
+      groups.set(e.transferId, g)
+    }
+    if ((e.type ?? 'expense') === 'expense') g.from = e.account
+    else g.to = e.account
+    if (e.transferNote) g.note = e.transferNote
+  }
+  return [...groups.values()]
+    .filter((g) => g.from && g.to)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
 }
 
 // Saldo actual por cuenta a partir de todos los movimientos.

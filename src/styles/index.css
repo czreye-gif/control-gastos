@@ -1993,6 +1993,55 @@ input, select {
   font-weight: 600;
 }
 
+/* Leyenda interactiva (drill-down de subcategorías) */
+.legend-item-btn {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 6px 4px;
+  margin: 0 -4px;
+  transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+.legend-item-btn:last-child { border-bottom: none; }
+.legend-item-btn:active { background: var(--border); }
+.legend-item-active {
+  background: var(--border);
+  font-weight: 600;
+}
+.legend-chevron {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+
+/* Hint de interacción en el título del gráfico */
+.chart-hint {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 6px;
+}
+
+/* Sección de desglose por subcategoría */
+.subchart-card {
+  border-left: 3px solid var(--border);
+}
+.subchart-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.subchart-header h3 {
+  margin: 0;
+  flex: 1;
+}
+.subchart-total {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
 /* Bottom nav */
 .navbar {
   position: fixed;

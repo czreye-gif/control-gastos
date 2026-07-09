@@ -313,6 +313,7 @@ export default function Movements() {
       {editingTandaMovement && (
         <TandaMovementEditor
           expense={editingTandaMovement}
+          accounts={accounts}
           onSave={async (data) => {
             const op = updateExpense(editingTandaMovement.id, data)
             setEditingTandaMovement(null)

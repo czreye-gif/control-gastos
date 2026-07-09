@@ -4,6 +4,8 @@ import { tandaDerived } from '../utils/useTandas'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { formatDayLabel, todayISO } from '../utils/dates'
 
+const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : -1)
+
 const FREQUENCIES = [
   { id: 'semanal', label: 'Semanal', unit: 'semana' },
   { id: 'quincenal', label: 'Quincenal', unit: 'quincena' },
@@ -12,7 +14,7 @@ const FREQUENCIES = [
 
 const freqUnit = (id) => FREQUENCIES.find((f) => f.id === id)?.unit ?? 'periodo'
 
-export function TandaCard({ tanda, accounts, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
+export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
   const confirm = useConfirm()
   const [sheet, setSheet] = useState(null) // null | 'contribute' | 'payout'
   const d = tandaDerived(tanda)
@@ -101,6 +103,23 @@ export function TandaCard({ tanda, accounts, onEdit, onContribute, onUndoContrib
               Deshacer cobro
             </button>
           )}
+        </div>
+      )}
+
+      {movements && movements.length > 0 && (
+        <div className="tanda-history">
+          <p className="tanda-history-title">Historial</p>
+          {[...movements].sort(sortByDateDesc).map((m) => (
+            <div key={m.id} className="tanda-history-item">
+              <span className="tanda-history-label">
+                {m.type === 'income' ? 'Cobro del pozo' : 'Aportación'}
+              </span>
+              <span className="tanda-history-date">{formatDayLabel(m.date)}</span>
+              <span className={`tanda-history-amount ${m.type === 'income' ? 'income-text' : 'expense-text'}`}>
+                {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
+              </span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -408,6 +427,53 @@ export function TandaEditor({ initial, accounts, onSave, onDelete, onClose }) {
             </button>
           )}
           <button className="btn-primary" disabled={!canSave} onClick={handleSave}>
+            Guardar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function TandaMovementEditor({ expense, onSave, onClose }) {
+  const [date, setDate] = useState(expense.date)
+  const [note, setNote] = useState(expense.note ?? '')
+  const isIncome = expense.type === 'income'
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>{isIncome ? 'Editar cobro de tanda' : 'Editar aportación de tanda'}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        <div className="register-amount" style={{ color: isIncome ? '#22c55e' : '#ef4444' }}>
+          {isIncome ? '+' : '−'}{formatMoney(expense.amount)}
+        </div>
+
+        <p className="picker-label">Fecha</p>
+        <input
+          className="date-input"
+          type="date"
+          value={date}
+          max={todayISO()}
+          onChange={(e) => setDate(e.target.value)}
+        />
+
+        <p className="picker-label">Nota</p>
+        <input
+          className="note-input"
+          type="text"
+          placeholder="Nota (opcional)"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+        />
+
+        <div className="sheet-actions">
+          <button className="btn-ghost" onClick={onClose}>Cancelar</button>
+          <button className="btn-primary" disabled={!date} onClick={() => onSave({ date, note: note.trim() || null })}>
             Guardar
           </button>
         </div>

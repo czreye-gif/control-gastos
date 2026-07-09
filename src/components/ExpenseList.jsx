@@ -1,7 +1,7 @@
 import { useCategories } from '../contexts/CategoriesContext'
 import { formatDayLabel } from '../utils/dates'
 
-export default function ExpenseList({ expenses, onSelect }) {
+export default function ExpenseList({ expenses, onSelect, onSelectTransfer }) {
   const { getCategory, getSubcategory } = useCategories()
 
   if (expenses.length === 0) {
@@ -28,11 +28,16 @@ export default function ExpenseList({ expenses, onSelect }) {
             const sub = getSubcategory(expense.category, expense.subcategory)
             const isIncome = expense.type === 'income'
             const isTransfer = expense.transfer
+            // Solo los traspasos entre cuentas (con transferId) son editables;
+            // los depósitos a alcancías / tandas siguen sin abrir nada.
+            const editableTransfer = isTransfer && expense.transferId && onSelectTransfer
             return (
               <button
                 key={expense.id}
                 className="expense-item"
-                onClick={() => !isTransfer && onSelect(expense)}
+                onClick={() =>
+                  isTransfer ? editableTransfer && onSelectTransfer(expense) : onSelect(expense)
+                }
               >
                 {isTransfer ? (
                   <span className="expense-icon" style={{ background: '#64748b22', color: '#94a3b8' }}>

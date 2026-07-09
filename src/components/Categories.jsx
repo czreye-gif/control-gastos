@@ -4,7 +4,7 @@ import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS, ICON_GROUPS } from '../utils/categories'
 
-export default function Categories({ onBack }) {
+export default function Categories({ onBack, initialType }) {
   const {
     categories,
     addCategory,
@@ -17,7 +17,7 @@ export default function Categories({ onBack }) {
   const navigate = useNavigate()
   const confirm = useConfirm()
   const back = onBack ?? (() => navigate(-1))
-  const [type, setType] = useState('expense')
+  const [type, setType] = useState(initialType ?? 'expense')
   const [editing, setEditing] = useState(null) // null | 'new' | categoría
   const [repairing, setRepairing] = useState(false)
   const [repairStatus, setRepairStatus] = useState('')

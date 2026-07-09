@@ -250,7 +250,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
 
     {showCategories && (
       <div className="categories-overlay">
-        <Categories onBack={() => setShowCategories(false)} />
+        <Categories onBack={() => setShowCategories(false)} initialType={type} />
       </div>
     )}
     </>

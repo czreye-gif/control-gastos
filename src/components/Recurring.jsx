@@ -295,7 +295,7 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
 
     {showCategories && (
       <div className="categories-overlay">
-        <Categories onBack={() => setShowCategories(false)} />
+        <Categories onBack={() => setShowCategories(false)} initialType={type} />
       </div>
     )}
   </>

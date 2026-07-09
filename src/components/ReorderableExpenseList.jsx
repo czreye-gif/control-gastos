@@ -12,8 +12,6 @@ function groupByDay(items) {
   return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
 }
 
-// Mueve el item `dragId` a la posición del item `overId` (solo si son del
-// mismo día). Reordena localmente para el arrastre en vivo.
 function moveWithinDay(list, dragId, overId) {
   const from = list.findIndex((e) => e.id === dragId)
   const to = list.findIndex((e) => e.id === overId)
@@ -32,44 +30,57 @@ export default function ReorderableExpenseList({ expenses, accounts, onReorderDa
   const [list, setList] = useState(expenses)
   const dragId = useRef(null)
   const dragDay = useRef(null)
+  const listRef = useRef(list)
+  const onReorderRef = useRef(onReorderDay)
   const [, force] = useState(0)
+
+  listRef.current = list
+  onReorderRef.current = onReorderDay
 
   // Re-sincroniza con los datos externos, salvo mientras se arrastra.
   useEffect(() => {
     if (!dragId.current) setList(expenses)
   }, [expenses])
 
+  // Listeners globales: más fiables que setPointerCapture en móvil con scroll.
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragId.current) return
+      e.preventDefault()
+      const el = document.elementFromPoint(e.clientX, e.clientY)
+      const target = el && el.closest('[data-move-id]')
+      if (!target) return
+      const overId = target.getAttribute('data-move-id')
+      const overDay = target.getAttribute('data-move-day')
+      if (overDay !== dragDay.current || overId === dragId.current) return
+      setList((prev) => moveWithinDay(prev, dragId.current, overId))
+    }
+
+    const onUp = () => {
+      if (!dragId.current) return
+      const day = dragDay.current
+      const dayItems = listRef.current.filter((e) => e.date === day)
+      dragId.current = null
+      dragDay.current = null
+      force((n) => n + 1)
+      onReorderRef.current(dayItems)
+    }
+
+    window.addEventListener('pointermove', onMove, { passive: false })
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
+    }
+  }, [])
+
   const handleDown = (e, item) => {
+    e.preventDefault() // impide que el navegador arranque el gesto de scroll
     dragId.current = item.id
     dragDay.current = item.date
     force((n) => n + 1)
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId)
-    } catch {
-      /* algunos navegadores lanzan si el puntero ya se soltó */
-    }
-  }
-
-  const handleMove = (e) => {
-    if (!dragId.current) return
-    e.preventDefault()
-    const el = document.elementFromPoint(e.clientX, e.clientY)
-    const target = el && el.closest('[data-move-id]')
-    if (!target) return
-    const overId = target.getAttribute('data-move-id')
-    const overDay = target.getAttribute('data-move-day')
-    if (overDay !== dragDay.current || overId === dragId.current) return
-    setList((prev) => moveWithinDay(prev, dragId.current, overId))
-  }
-
-  const handleUp = () => {
-    if (!dragId.current) return
-    const day = dragDay.current
-    const dayItems = list.filter((e) => e.date === day)
-    dragId.current = null
-    dragDay.current = null
-    force((n) => n + 1)
-    onReorderDay(dayItems)
   }
 
   const groups = groupByDay(list)
@@ -97,9 +108,6 @@ export default function ReorderableExpenseList({ expenses, accounts, onReorderDa
                 <span
                   className="reorder-handle"
                   onPointerDown={(e) => handleDown(e, expense)}
-                  onPointerMove={handleMove}
-                  onPointerUp={handleUp}
-                  onPointerCancel={handleUp}
                   aria-label="Arrastrar para reordenar"
                 >
                   ≡

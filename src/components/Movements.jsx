@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
+import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { useExpenses } from '../utils/useExpenses'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useAccounts } from '../utils/useAccounts'
@@ -21,6 +22,7 @@ export default function Movements() {
   const [accountId, setAccountId] = useState('all')
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [editing, setEditing] = useState(null)
+  const [editingTransfer, setEditingTransfer] = useState(null)
 
   // Meses disponibles a partir de los datos reales (no un rango fijo).
   const availableMonths = useMemo(() => {
@@ -246,7 +248,11 @@ export default function Movements() {
         <p className="empty-state">No hay movimientos que coincidan con la búsqueda.</p>
       ) : (
         <>
-          <ExpenseList expenses={visible} onSelect={(expense) => setEditing(expense)} />
+          <ExpenseList
+            expenses={visible}
+            onSelect={(expense) => setEditing(expense)}
+            onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
+          />
           {hasMore && (
             <button className="load-more-btn" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
               Cargar más ({filtered.length - visibleCount} restantes)
@@ -262,6 +268,10 @@ export default function Movements() {
           onDelete={handleDelete}
           onClose={() => setEditing(null)}
         />
+      )}
+
+      {editingTransfer && (
+        <EditTransferSheet transfer={editingTransfer} onClose={() => setEditingTransfer(null)} />
       )}
     </div>
   )

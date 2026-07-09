@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
+import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
 import { useBudgets } from '../utils/useBudgets'
@@ -33,6 +34,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
+  const [editingTransfer, setEditingTransfer] = useState(null)
 
   const { budgets } = useBudgets()
   const { accounts } = useAccounts()
@@ -280,6 +282,7 @@ export default function Home() {
             setEditing(expense)
             setShowAdd(true)
           }}
+          onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
         />
       )}
 
@@ -305,6 +308,10 @@ export default function Home() {
             setEditing(null)
           }}
         />
+      )}
+
+      {editingTransfer && (
+        <EditTransferSheet transfer={editingTransfer} onClose={() => setEditingTransfer(null)} />
       )}
     </div>
   )

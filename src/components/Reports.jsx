@@ -18,8 +18,14 @@ import { currentMonthISO, formatMonthLabel, lastNMonths, monthOf } from '../util
 import { formatMoney } from './ExpenseList'
 import { COLOR_OPTIONS } from '../utils/categories'
 
-// Paleta para subcategorías: alterna entre los colores disponibles.
-const SUB_COLORS = [...COLOR_OPTIONS, '#64748b', '#475569', '#94a3b8']
+// Paleta para subcategorías: reordenada para maximizar el contraste entre
+// rebanadas adyacentes, alternando colores cálidos y fríos.
+const SUB_COLORS = [
+  '#f97316', '#3b82f6', '#22c55e', '#a855f7',
+  '#f59e0b', '#06b6d4', '#ec4899', '#10b981',
+  '#8b5cf6', '#eab308', '#0ea5e9', '#14b8a6',
+  '#64748b', '#f43f5e', '#84cc16',
+]
 
 export default function Reports() {
   const { expenses, loading } = useExpenses()
@@ -125,7 +131,13 @@ export default function Reports() {
     }))
   }, [incomeMovs, spendMovs, months])
 
+  const [selectedSubId, setSelectedSubId] = useState(null)
+
+  // Limpia la selección de subcategoría al cambiar de categoría.
+  useEffect(() => { setSelectedSubId(null) }, [selectedCatId])
+
   const toggleCat = (id) => setSelectedCatId((prev) => (prev === id ? null : id))
+  const toggleSub = (id) => setSelectedSubId((prev) => (prev === id ? null : id))
 
   if (loading) return <p className="loading-text">Cargando...</p>
 
@@ -292,9 +304,15 @@ export default function Reports() {
                         innerRadius={50}
                         outerRadius={85}
                         paddingAngle={2}
+                        onClick={(data) => toggleSub(data.id)}
+                        style={{ cursor: 'pointer' }}
                       >
                         {bySubcategory.map((s) => (
-                          <Cell key={s.id} fill={s.color} />
+                          <Cell
+                            key={s.id}
+                            fill={s.color}
+                            opacity={selectedSubId && selectedSubId !== s.id ? 0.35 : 1}
+                          />
                         ))}
                       </Pie>
                       <Tooltip
@@ -305,10 +323,15 @@ export default function Reports() {
                   </ResponsiveContainer>
                   <ul className="legend-list">
                     {bySubcategory.map((s) => (
-                      <li key={s.id}>
+                      <li
+                        key={s.id}
+                        className={`legend-item-btn ${selectedSubId === s.id ? 'legend-item-active' : ''}`}
+                        onClick={() => toggleSub(s.id)}
+                      >
                         <span className="legend-dot" style={{ background: s.color }} />
                         <span>{s.icon} {s.name}</span>
                         <span className="legend-amount">{formatMoney(s.value)}</span>
+                        <span className="legend-chevron">{selectedSubId === s.id ? '●' : '○'}</span>
                       </li>
                     ))}
                   </ul>

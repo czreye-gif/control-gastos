@@ -9,6 +9,7 @@ import {
   query,
   serverTimestamp,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
@@ -27,16 +28,20 @@ export function useExpenses() {
     const ref = collection(db, 'users', user.uid, 'expenses')
     const q = query(ref, orderBy('date', 'desc'))
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      // Se ordena por fecha y, dentro del mismo día, por hora de registro
-      // (`createdAt`). Firestore solo ordena por `date` (sin hora) y desempata
-      // por id de documento, así que sin este paso los movimientos del mismo
-      // día salían en desorden. Un movimiento recién agregado aún no tiene
-      // `createdAt` del servidor (queda null): se trata como el más reciente
-      // para que aparezca arriba de su día de inmediato.
+      // Orden dentro de cada día:
+      //  1. Si el usuario reacomodó el día a mano, manda su `order` (ascendente:
+      //     0 = arriba). Un movimiento nuevo aún sin `order` se trata como el
+      //     más reciente (-Infinity) para que entre arriba de su día.
+      //  2. Como respaldo (día sin reacomodar), la hora de registro
+      //     (`createdAt`) desc, ya que Firestore solo ordena por `date` (sin
+      //     hora) y desempata por id de documento.
       const docs = snapshot.docs
         .map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => {
           if (a.date !== b.date) return a.date < b.date ? 1 : -1
+          const oa = a.order ?? -Infinity
+          const ob = b.order ?? -Infinity
+          if (oa !== ob) return oa - ob
           return (b.createdAt?.seconds ?? Infinity) - (a.createdAt?.seconds ?? Infinity)
         })
       setExpenses(docs)
@@ -69,5 +74,20 @@ export function useExpenses() {
     return deleteDoc(ref)
   }
 
-  return { expenses, loading, addExpense, updateExpense, deleteExpense }
+  // Guarda el orden manual de los movimientos de un día. Recibe los items en el
+  // orden visual deseado (arriba → abajo) y les asigna `order` 0..n-1. Solo
+  // escribe los que cambiaron, en un lote.
+  const reorderDay = async (dayItems) => {
+    const batch = writeBatch(db)
+    let changed = 0
+    dayItems.forEach((it, i) => {
+      if (it.order !== i) {
+        batch.update(doc(db, 'users', user.uid, 'expenses', it.id), { order: i })
+        changed++
+      }
+    })
+    if (changed > 0) await batch.commit()
+  }
+
+  return { expenses, loading, addExpense, updateExpense, deleteExpense, reorderDay }
 }

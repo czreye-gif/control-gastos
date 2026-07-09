@@ -7,6 +7,7 @@ import { useAccounts, computeBalances, computeTransfers } from '../utils/useAcco
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS } from '../utils/categories'
 import { formatDayLabel, todayISO } from '../utils/dates'
+import { useCategories } from '../contexts/CategoriesContext'
 
 const ACCOUNT_ICONS = ['💵', '💳', '🏦', '🐷', '📱', '💰', '🪙', '💸']
 
@@ -14,9 +15,11 @@ export default function Accounts() {
   const { expenses, loading } = useExpenses()
   const { accounts, addAccount, updateAccount, deleteAccount, transfer, updateTransfer, deleteTransfer } =
     useAccounts()
+  const { getCategory } = useCategories()
   const confirm = useConfirm()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | cuenta
+  const [kardex, setKardex] = useState(null) // null | cuenta
   const [transferSheet, setTransferSheet] = useState(null) // null | 'new' | traspaso
 
   // Las alcancías (piggy) ya no viven aquí: se manejan en el módulo Ahorros.
@@ -75,7 +78,7 @@ export default function Accounts() {
         <div className="account-list">
           {withBalance.map((a) => (
             <div key={a.id} className="account-card">
-              <button className="account-main" onClick={() => setEditing(a)}>
+              <button className="account-main" onClick={() => setKardex(a)}>
                 <span className="account-icon" style={{ background: a.color + '22', color: a.color }}>
                   {a.icon}
                 </span>
@@ -123,6 +126,16 @@ export default function Accounts() {
       <button className="fab" onClick={() => setEditing('new')} aria-label="Nueva cuenta">
         +
       </button>
+
+      {kardex && (
+        <AccountKardex
+          account={kardex}
+          expenses={expenses}
+          getCategory={getCategory}
+          onEdit={() => { setKardex(null); setEditing(kardex) }}
+          onClose={() => setKardex(null)}
+        />
+      )}
 
       {editing && (
         <AccountEditor
@@ -213,6 +226,76 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
           <button className="btn-primary" disabled={!canSave} onClick={() => onDeposit(amount, source || null)}>
             Depositar
           </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function AccountKardex({ account, expenses, getCategory, onEdit, onClose }) {
+  const movements = useMemo(() => {
+    return expenses
+      .filter((e) => e.account === account.id)
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+  }, [expenses, account.id])
+
+  const rows = useMemo(() => {
+    let balance = account.initialBalance || 0
+    const result = movements.map((m) => {
+      const sign = (m.type ?? 'expense') === 'income' ? 1 : -1
+      balance += sign * m.amount
+      return { ...m, runningBalance: balance }
+    })
+    return result.reverse()
+  }, [movements, account.initialBalance])
+
+  const currentBalance = rows.length > 0 ? rows[0].runningBalance : (account.initialBalance || 0)
+
+  const movLabel = (m) => {
+    if (m.note) return m.note
+    if (m.category) return getCategory(m.category).name
+    return (m.type ?? 'expense') === 'income' ? 'Ingreso' : 'Gasto'
+  }
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>
+            <span style={{ color: account.color }}>{account.icon}</span> {account.name}
+          </h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        <div className={`register-amount ${currentBalance < 0 ? 'expense-text' : ''}`}>
+          {formatMoney(currentBalance)}
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="empty-state">No hay movimientos para esta cuenta.</p>
+        ) : (
+          <div className="kardex-list">
+            {rows.map((m) => {
+              const isIncome = (m.type ?? 'expense') === 'income'
+              return (
+                <div key={m.id} className="kardex-item">
+                  <span className="kardex-desc">{movLabel(m)}</span>
+                  <span className={`kardex-amount ${isIncome ? 'income-text' : 'expense-text'}`}>
+                    {isIncome ? '+' : '−'}{formatMoney(m.amount)}
+                  </span>
+                  <span className="kardex-date">{formatDayLabel(m.date)}</span>
+                  <span className={`kardex-balance ${m.runningBalance < 0 ? 'expense-text' : 'muted-text'}`}>
+                    {formatMoney(m.runningBalance)}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        <div className="sheet-actions">
+          <button className="btn-ghost" onClick={onEdit}>Editar cuenta</button>
         </div>
       </div>
     </div>

@@ -27,7 +27,19 @@ export function useExpenses() {
     const ref = collection(db, 'users', user.uid, 'expenses')
     const q = query(ref, orderBy('date', 'desc'))
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setExpenses(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })))
+      // Se ordena por fecha y, dentro del mismo día, por hora de registro
+      // (`createdAt`). Firestore solo ordena por `date` (sin hora) y desempata
+      // por id de documento, así que sin este paso los movimientos del mismo
+      // día salían en desorden. Un movimiento recién agregado aún no tiene
+      // `createdAt` del servidor (queda null): se trata como el más reciente
+      // para que aparezca arriba de su día de inmediato.
+      const docs = snapshot.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => {
+          if (a.date !== b.date) return a.date < b.date ? 1 : -1
+          return (b.createdAt?.seconds ?? Infinity) - (a.createdAt?.seconds ?? Infinity)
+        })
+      setExpenses(docs)
       setLoading(false)
     })
     return unsubscribe

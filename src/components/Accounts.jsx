@@ -2,24 +2,29 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useExpenses } from '../utils/useExpenses'
-import { useAccounts, computeBalances } from '../utils/useAccounts'
+import { useAccounts, computeBalances, computeTransfers } from '../utils/useAccounts'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS } from '../utils/categories'
-import { todayISO } from '../utils/dates'
+import { formatDayLabel, todayISO } from '../utils/dates'
 
 const ACCOUNT_ICONS = ['💵', '💳', '🏦', '🐷', '📱', '💰', '🪙', '💸']
 
 export default function Accounts() {
   const { expenses, loading } = useExpenses()
-  const { accounts, addAccount, updateAccount, deleteAccount, transfer } = useAccounts()
+  const { accounts, addAccount, updateAccount, deleteAccount, transfer, updateTransfer, deleteTransfer } =
+    useAccounts()
+  const confirm = useConfirm()
   const navigate = useNavigate()
   const [editing, setEditing] = useState(null) // null | 'new' | cuenta
-  const [transferring, setTransferring] = useState(false)
+  const [transferSheet, setTransferSheet] = useState(null) // null | 'new' | traspaso
 
   // Las alcancías (piggy) ya no viven aquí: se manejan en el módulo Ahorros.
   const regular = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
   const withBalance = useMemo(() => computeBalances(regular, expenses), [regular, expenses])
   const total = withBalance.reduce((acc, a) => acc + a.balance, 0)
+
+  const transfers = useMemo(() => computeTransfers(expenses), [expenses])
+  const accountById = useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts])
 
   const handleSave = async (data) => {
     if (editing && editing !== 'new') {
@@ -54,7 +59,7 @@ export default function Accounts() {
       )}
 
       {regular.length >= 2 && (
-        <button className="transfer-btn" onClick={() => setTransferring(true)}>
+        <button className="transfer-btn" onClick={() => setTransferSheet('new')}>
           🔄 Traspasar entre cuentas
         </button>
       )}
@@ -85,6 +90,35 @@ export default function Accounts() {
         </div>
       )}
 
+      {transfers.length > 0 && (
+        <>
+          <h3 className="section-title">Traspasos</h3>
+          <div className="transfer-list">
+            {transfers.map((tr) => {
+              const fromAcc = accountById.get(tr.from)
+              const toAcc = accountById.get(tr.to)
+              return (
+                <button key={tr.transferId} className="transfer-item" onClick={() => setTransferSheet(tr)}>
+                  <span className="transfer-icon">🔄</span>
+                  <span className="transfer-info">
+                    <span className="transfer-route">
+                      {fromAcc ? `${fromAcc.icon} ${fromAcc.name}` : 'Cuenta eliminada'}
+                      {' → '}
+                      {toAcc ? `${toAcc.icon} ${toAcc.name}` : 'Cuenta eliminada'}
+                    </span>
+                    <span className="transfer-meta">
+                      {formatDayLabel(tr.date)}
+                      {tr.note ? ` · ${tr.note}` : ''}
+                    </span>
+                  </span>
+                  <span className="transfer-amount">{formatMoney(tr.amount)}</span>
+                </button>
+              )
+            })}
+          </div>
+        </>
+      )}
+
       <button className="fab" onClick={() => setEditing('new')} aria-label="Nueva cuenta">
         +
       </button>
@@ -98,32 +132,47 @@ export default function Accounts() {
         />
       )}
 
-      {transferring && (
+      {transferSheet && (
         <TransferSheet
+          initial={transferSheet === 'new' ? null : transferSheet}
           accounts={withBalance}
-          onTransfer={async (data) => {
-            await transfer(data)
-            setTransferring(false)
+          onSubmit={async (data) => {
+            if (transferSheet === 'new') await transfer(data)
+            else await updateTransfer(transferSheet.transferId, data)
+            setTransferSheet(null)
           }}
-          onClose={() => setTransferring(false)}
+          onDelete={async () => {
+            const ok = await confirm({
+              title: 'Eliminar traspaso',
+              message: 'Se eliminan las dos partes del traspaso y el dinero vuelve a como estaba.',
+            })
+            if (ok) {
+              await deleteTransfer(transferSheet.transferId)
+              setTransferSheet(null)
+            }
+          }}
+          onClose={() => setTransferSheet(null)}
         />
       )}
     </div>
   )
 }
 
-// Hoja para mover dinero de una cuenta a otra.
-function TransferSheet({ accounts, onTransfer, onClose }) {
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
-  const [value, setValue] = useState('')
-  const [date, setDate] = useState(todayISO())
-  const [note, setNote] = useState('')
+// Hoja para crear o editar un traspaso entre cuentas.
+function TransferSheet({ initial, accounts, onSubmit, onDelete, onClose }) {
+  const [from, setFrom] = useState(initial?.from ?? '')
+  const [to, setTo] = useState(initial?.to ?? '')
+  const [value, setValue] = useState(initial ? String(initial.amount) : '')
+  const [date, setDate] = useState(initial?.date ?? todayISO())
+  const [note, setNote] = useState(initial?.note ?? '')
   const [saving, setSaving] = useState(false)
 
   const amount = Number(value)
   const fromAcc = accounts.find((a) => a.id === from)
-  const insufficient = fromAcc && amount > 0 && amount > fromAcc.balance
+  // Al editar, el saldo mostrado ya incluye este traspaso; se le suma de vuelta
+  // el monto original para juzgar la suficiencia como si no existiera.
+  const availableFrom = fromAcc ? fromAcc.balance + (initial && initial.from === from ? initial.amount : 0) : 0
+  const insufficient = fromAcc && amount > 0 && amount > availableFrom
   const canSave = from && to && from !== to && value !== '' && Number.isFinite(amount) && amount > 0
 
   // Al elegir origen, si el destino coincide se limpia para evitar A→A.
@@ -135,7 +184,7 @@ function TransferSheet({ accounts, onTransfer, onClose }) {
   const handleSave = async () => {
     if (!canSave || saving) return
     setSaving(true)
-    await onTransfer({ from, to, amount, date, note })
+    await onSubmit({ from, to, amount, date, note })
   }
 
   return (
@@ -143,7 +192,7 @@ function TransferSheet({ accounts, onTransfer, onClose }) {
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="sheet-head">
-          <h2>Traspasar entre cuentas</h2>
+          <h2>{initial ? 'Editar traspaso' : 'Traspasar entre cuentas'}</h2>
           <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar" disabled={saving}>✕</button>
         </div>
 
@@ -192,7 +241,7 @@ function TransferSheet({ accounts, onTransfer, onClose }) {
           />
         </div>
         {insufficient && (
-          <p className="tanda-error">⚠️ El monto supera el saldo de {fromAcc.name} ({formatMoney(fromAcc.balance)}). El traspaso se registra igual y la cuenta quedará en negativo.</p>
+          <p className="tanda-error">⚠️ El monto supera el saldo de {fromAcc.name} ({formatMoney(availableFrom)}). El traspaso se registra igual y la cuenta quedará en negativo.</p>
         )}
 
         <p className="picker-label">Fecha</p>
@@ -213,9 +262,13 @@ function TransferSheet({ accounts, onTransfer, onClose }) {
         />
 
         <div className="sheet-actions">
-          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+          {initial ? (
+            <button className="btn-danger" onClick={onDelete} disabled={saving}>Eliminar</button>
+          ) : (
+            <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+          )}
           <button className="btn-primary" disabled={!canSave || saving} onClick={handleSave}>
-            {saving ? 'Traspasando…' : 'Traspasar'}
+            {saving ? 'Guardando…' : initial ? 'Guardar cambios' : 'Traspasar'}
           </button>
         </div>
       </div>

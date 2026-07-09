@@ -1087,6 +1087,63 @@ input, select {
   margin-bottom: 16px;
 }
 
+/* Historial de traspasos */
+.transfer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.transfer-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+}
+
+.transfer-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  background: #64748b22;
+}
+
+.transfer-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.transfer-route {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.transfer-meta {
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.transfer-amount {
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
 .balance-breakdown {
   display: flex;
   gap: 8px;

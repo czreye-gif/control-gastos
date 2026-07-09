@@ -1260,6 +1260,44 @@ input, select {
   cursor: default;
 }
 
+.movements-header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Modo reordenar movimientos */
+.reorder-banner {
+  background: var(--green-light);
+  color: var(--text);
+  border: 1px solid var(--green);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.reorder-item {
+  gap: 8px;
+  touch-action: pan-y;
+}
+
+.reorder-handle {
+  flex-shrink: 0;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--muted);
+  padding: 4px 8px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.reorder-item.dragging {
+  border-color: var(--green);
+  background: var(--green-light);
+  opacity: 0.9;
+}
+
 /* Presupuestos */
 .section-row {
   display: flex;

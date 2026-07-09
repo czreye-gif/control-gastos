@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ExpenseList, { formatMoney } from './ExpenseList'
+import ReorderableExpenseList from './ReorderableExpenseList'
 import AddExpense from './AddExpense'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { useExpenses } from '../utils/useExpenses'
@@ -11,7 +12,7 @@ import { downloadFile, movementsToCsv } from '../utils/exportCsv'
 const PAGE_SIZE = 20
 
 export default function Movements() {
-  const { expenses, loading, updateExpense, deleteExpense } = useExpenses()
+  const { expenses, loading, updateExpense, deleteExpense, reorderDay } = useExpenses()
   const { categories, getCategory, getSubcategory } = useCategories()
   const { accounts } = useAccounts()
 
@@ -23,6 +24,7 @@ export default function Movements() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [editing, setEditing] = useState(null)
   const [editingTransfer, setEditingTransfer] = useState(null)
+  const [reorderMode, setReorderMode] = useState(false)
 
   // Meses disponibles a partir de los datos reales (no un rango fijo).
   const availableMonths = useMemo(() => {
@@ -152,16 +154,39 @@ export default function Movements() {
     <div className="page">
       <header className="reports-header">
         <h1>Movimientos</h1>
-        <button
-          type="button"
-          className="export-btn"
-          onClick={handleExport}
-          disabled={filtered.length === 0}
-        >
-          ⬇ Exportar
-        </button>
+        {reorderMode ? (
+          <button type="button" className="export-btn" onClick={() => setReorderMode(false)}>
+            ✓ Listo
+          </button>
+        ) : (
+          <div className="movements-header-actions">
+            <button
+              type="button"
+              className="export-btn"
+              onClick={() => setReorderMode(true)}
+              disabled={expenses.length < 2}
+            >
+              ↕ Reordenar
+            </button>
+            <button
+              type="button"
+              className="export-btn"
+              onClick={handleExport}
+              disabled={filtered.length === 0}
+            >
+              ⬇ Exportar
+            </button>
+          </div>
+        )}
       </header>
 
+      {reorderMode && (
+        <div className="reorder-banner">
+          Arrastra los movimientos con <strong>≡</strong> para acomodarlos dentro de cada día. Toca <strong>Listo</strong> al terminar.
+        </div>
+      )}
+
+      {!reorderMode && (
       <input
         className="search-input"
         type="search"
@@ -169,7 +194,10 @@ export default function Movements() {
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
+      )}
 
+      {!reorderMode && (
+      <>
       <div className="type-toggle">
         <button
           type="button"
@@ -241,9 +269,13 @@ export default function Movements() {
           </button>
         )}
       </div>
+      </>
+      )}
 
       {loading ? (
         <p className="loading-text">Cargando...</p>
+      ) : reorderMode ? (
+        <ReorderableExpenseList expenses={expenses} onReorderDay={reorderDay} />
       ) : filtered.length === 0 ? (
         <p className="empty-state">No hay movimientos que coincidan con la búsqueda.</p>
       ) : (

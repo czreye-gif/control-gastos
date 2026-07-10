@@ -129,9 +129,12 @@ export function FacturablesAlert() {
   const { expenses } = useExpenses()
   const navigate = useNavigate()
   const month = currentMonthISO()
+  const today = todayISO()
+  // Se pospone por día: el usuario lo cierra hoy pero reaparece cada uno de los
+  // 5 días previos al fin de mes.
   const dismissKey = 'facturables-alert-dismissed'
   const [dismissed, setDismissed] = useState(
-    () => localStorage.getItem(dismissKey) === month
+    () => localStorage.getItem(dismissKey) === today
   )
 
   const billable = useMemo(
@@ -144,7 +147,7 @@ export function FacturablesAlert() {
 
   const dismiss = (e) => {
     e.stopPropagation()
-    localStorage.setItem(dismissKey, month)
+    localStorage.setItem(dismissKey, today)
     setDismissed(true)
   }
 

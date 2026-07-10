@@ -65,6 +65,9 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                         ? (owner ? `${owner.icon} ${owner.name}` : expense.note || 'Traspaso')
                         : cat.name}
                     {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
+                    {!isTransfer && expense.billable && (
+                      <span className="expense-billable-badge" title="Facturable">🧾</span>
+                    )}
                   </span>
                   {isTandaMovement ? (
                     <span className="expense-note">{expense.type === 'income' ? 'Cobro del pozo' : 'Aportación'}</span>

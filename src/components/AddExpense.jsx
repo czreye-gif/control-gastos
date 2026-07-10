@@ -22,6 +22,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
   const [note, setNote] = useState(initial?.note ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
   const [account, setAccount] = useState(initial?.account ?? '')
+  const [billable, setBillable] = useState(initial?.billable ?? false)
   const [saving, setSaving] = useState(false)
   const [showFavorites, setShowFavorites] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
@@ -55,6 +56,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
     setType(t)
     setCategory('')
     setSubcategory('')
+    if (t === 'income') setBillable(false)
   }
 
   const selectCategory = (id) => {
@@ -90,6 +92,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
       note: note.trim(),
       date,
       account: account || null,
+      billable: type === 'expense' ? billable : false,
     })
   }
 
@@ -221,6 +224,23 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
           max={todayISO()}
           onChange={(e) => setDate(e.target.value)}
         />
+
+        {type === 'expense' && (
+          <button
+            type="button"
+            className={`billable-toggle ${billable ? 'active' : ''}`}
+            onClick={() => setBillable((b) => !b)}
+          >
+            <span className="billable-toggle-icon">🧾</span>
+            <span className="billable-toggle-text">
+              <span className="billable-toggle-label">Solicitar factura (CFDI)</span>
+              <span className="billable-toggle-hint">Aparecerá en Gastos Facturables</span>
+            </span>
+            <span className={`billable-switch ${billable ? 'on' : ''}`}>
+              <span className="billable-switch-dot" />
+            </span>
+          </button>
+        )}
 
         <div className="sheet-actions">
           {initial && (

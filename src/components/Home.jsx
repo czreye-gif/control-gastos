@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
+import { FacturablesAlert } from './GastosFacturables'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
@@ -115,6 +116,9 @@ export default function Home() {
           <button className="icon-btn" onClick={() => navigate('/recurrentes')} aria-label="Pagos recurrentes">
             🔁
           </button>
+          <button className="icon-btn" onClick={() => navigate('/facturables')} aria-label="Gastos facturables">
+            🧾
+          </button>
           <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
             ⚙️
           </button>
@@ -127,6 +131,8 @@ export default function Home() {
           </button>
         </div>
       </div>
+
+      <FacturablesAlert />
 
       <div className="balance-card">
         <div className="balance-item">

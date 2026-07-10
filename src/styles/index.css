@@ -1838,6 +1838,107 @@ input, select {
 }
 .muted-text { color: var(--text-muted); }
 
+/* Gastos facturables */
+.billable-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.billable-toggle.active {
+  border-color: var(--green);
+  background: var(--green-light);
+}
+.billable-toggle-icon { font-size: 22px; flex-shrink: 0; }
+.billable-toggle-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.billable-toggle-label { font-size: 15px; font-weight: 600; color: var(--text); }
+.billable-toggle-hint { font-size: 12px; color: var(--text-muted); }
+.billable-switch {
+  flex-shrink: 0;
+  width: 42px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--border);
+  position: relative;
+  transition: background 0.15s;
+}
+.billable-switch.on { background: var(--green); }
+.billable-switch-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+}
+.billable-switch.on .billable-switch-dot { transform: translateX(18px); }
+
+.expense-billable-badge {
+  margin-left: 6px;
+  font-size: 12px;
+}
+
+.facturables-hint {
+  background: var(--green-light);
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+
+/* Banner de recordatorio en Inicio */
+.facturables-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid var(--green);
+  border-radius: 14px;
+  background: var(--green-light);
+  cursor: pointer;
+  text-align: left;
+}
+.facturables-alert-icon { font-size: 26px; flex-shrink: 0; }
+.facturables-alert-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.facturables-alert-title { font-size: 15px; font-weight: 700; color: var(--text); }
+.facturables-alert-text { font-size: 13px; color: var(--text-muted); }
+.facturables-alert-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+.facturables-alert-close:active { background: var(--border); }
+
 .register-amount {
   font-size: 26px;
   font-weight: 700;

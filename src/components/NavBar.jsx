@@ -49,6 +49,10 @@ export default function NavBar() {
           <span>📊</span>
           <span>Reportes</span>
         </NavLink>
+        <NavLink to="/facturables" className="nav-item">
+          <span>🧾</span>
+          <span>Facturables</span>
+        </NavLink>
         <button className="nav-item" onClick={() => setShowSheet(true)} aria-label="Mi cuenta">
           <span className="nav-avatar">
             {initial}

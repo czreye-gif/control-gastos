@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
-import { currentMonthISO, dateOfMonth, nextMonth, todayISO } from './dates'
+import { addDaysISO, currentMonthISO, dateOfMonth, nextMonth, todayISO } from './dates'
 
 // Una plantilla recurrente describe un movimiento mensual fijo (renta,
 // suscripciones…). Guarda `dayOfMonth`, el mes de inicio y `lastGenerated`
@@ -37,7 +37,18 @@ export function useRecurring() {
     return unsubscribe
   }, [user])
 
-  const addRecurring = ({ amount, type, category, subcategory, note, dayOfMonth, account }) => {
+  const addRecurring = ({
+    amount,
+    type,
+    category,
+    subcategory,
+    note,
+    dayOfMonth,
+    account,
+    frequency,
+    intervalDays,
+    anchorDate,
+  }) => {
     const ref = collection(db, 'users', user.uid, 'recurring')
     return addDoc(ref, {
       amount,
@@ -45,11 +56,17 @@ export function useRecurring() {
       category,
       subcategory: subcategory || null,
       note: note || '',
-      dayOfMonth,
       account: account || null,
       active: true,
+      // 'mensual' = día fijo del mes (dayOfMonth); 'dias' = cada N días desde
+      // anchorDate (periodo personalizado).
+      frequency: frequency || 'mensual',
+      dayOfMonth: dayOfMonth ?? null,
+      intervalDays: intervalDays ?? null,
+      anchorDate: anchorDate ?? null,
       startMonth: currentMonthISO(),
       lastGenerated: null,
+      lastGeneratedDate: null,
       createdAt: serverTimestamp(),
     })
   }
@@ -70,11 +87,12 @@ export function useRecurring() {
   // usuario confirmó (puede ser distinta de la asignada, o ninguna).
   const commitDue = (t, account) => generateOccurrences(user.uid, t, account)
 
-  // Registra UN solo movimiento en una fecha específica y actualiza lastGenerated.
+  // Registra UN solo movimiento en una fecha específica y avanza el cursor. En
+  // modo 'dias' el cursor es una fecha (lastGeneratedDate) que salta a la última
+  // ocurrencia vencida; en 'mensual' es un mes (lastGenerated).
   const commitOne = async (t, account, date) => {
     if (t.active === false) return
     const acc = account !== undefined ? account || null : t.account || null
-    const month = date.slice(0, 7)
     await addDoc(collection(db, 'users', user.uid, 'expenses'), {
       amount: t.amount,
       type: t.type || 'expense',
@@ -86,20 +104,44 @@ export function useRecurring() {
       recurringId: t.id,
       createdAt: serverTimestamp(),
     })
-    const last = t.lastGenerated
-    if (!last || month >= last) {
-      await updateDoc(doc(db, 'users', user.uid, 'recurring', t.id), {
-        lastGenerated: month,
-      })
+    if ((t.frequency ?? 'mensual') === 'dias') {
+      const occ = dueOccurrences(t, currentMonthISO(), todayISO())
+      const through = occ.length ? occ[occ.length - 1].date : date
+      const prev = t.lastGeneratedDate
+      if (!prev || through >= prev) {
+        await updateDoc(doc(db, 'users', user.uid, 'recurring', t.id), { lastGeneratedDate: through })
+      }
+    } else {
+      const month = date.slice(0, 7)
+      const last = t.lastGenerated
+      if (!last || month >= last) {
+        await updateDoc(doc(db, 'users', user.uid, 'recurring', t.id), { lastGenerated: month })
+      }
     }
   }
 
   return { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow, commitDue, commitOne }
 }
 
-// Meses "vencidos" de una plantilla: desde su inicio (o el último generado)
-// hasta el mes actual, pero solo si ya pasó el día del mes.
+// Ocurrencias "vencidas" de una plantilla (aún sin registrar y con fecha ≤ hoy).
+//  - 'dias': avanza desde anchorDate en pasos de intervalDays.
+//  - 'mensual': recorre mes por mes desde su inicio con el día fijo.
 export function dueOccurrences(t, curMonth, today) {
+  if ((t.frequency ?? 'mensual') === 'dias') {
+    const occ = []
+    const step = Math.max(1, Number(t.intervalDays) || 1)
+    const anchor = t.anchorDate || today
+    const last = t.lastGeneratedDate
+    let d = anchor
+    let guard = 0
+    while (d <= today && guard < 2000) {
+      if (!last || d > last) occ.push({ month: d.slice(0, 7), date: d })
+      d = addDaysISO(d, step)
+      guard++
+    }
+    return occ
+  }
+
   const occ = []
   let m = t.startMonth || curMonth
   while (m <= curMonth) {
@@ -137,7 +179,9 @@ async function generateOccurrences(uid, t, accountOverride) {
       createdAt: serverTimestamp(),
     })
   }
-  await updateDoc(doc(db, 'users', uid, 'recurring', t.id), {
-    lastGenerated: occ[occ.length - 1].month,
-  })
+  const cursor =
+    (t.frequency ?? 'mensual') === 'dias'
+      ? { lastGeneratedDate: occ[occ.length - 1].date }
+      : { lastGenerated: occ[occ.length - 1].month }
+  await updateDoc(doc(db, 'users', uid, 'recurring', t.id), cursor)
 }

@@ -6,7 +6,19 @@ import { useRecurring, dueOccurrences } from '../utils/useRecurring'
 import { useCategories } from '../contexts/CategoriesContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { useAccounts } from '../utils/useAccounts'
-import { currentMonthISO, dateOfMonth, formatDayLabel, nextMonth, todayISO } from '../utils/dates'
+import { addDaysISO, currentMonthISO, dateOfMonth, formatDayLabel, nextMonth, todayISO } from '../utils/dates'
+
+// Texto legible de la periodicidad de una plantilla.
+function frequencyLabel(t) {
+  if ((t.frequency ?? 'mensual') === 'dias') {
+    const n = Math.max(1, Number(t.intervalDays) || 1)
+    if (n === 1) return 'Cada día'
+    if (n === 7) return 'Cada semana'
+    if (n % 7 === 0) return `Cada ${n / 7} semanas`
+    return `Cada ${n} días`
+  }
+  return `Día ${t.dayOfMonth || 1} de cada mes`
+}
 
 export default function Recurring() {
   const { recurring, loading, addRecurring, updateRecurring, deleteRecurring, generateNow, commitOne } = useRecurring()
@@ -45,7 +57,7 @@ export default function Recurring() {
         <h1>Pagos recurrentes</h1>
       </header>
 
-      <p className="page-subtitle">Movimientos que se registran automáticamente cada mes.</p>
+      <p className="page-subtitle">Movimientos que se registran automáticamente cada mes o en el periodo que definas.</p>
 
       {recurring.length === 0 ? (
         <p className="empty-state">
@@ -71,7 +83,7 @@ export default function Recurring() {
                       {sub && <span className="expense-subcategory"> · {sub.name}</span>}
                     </span>
                     <span className="expense-note">
-                      Día {t.dayOfMonth} de cada mes{t.note ? ` · ${t.note}` : ''}
+                      {frequencyLabel(t)}{t.note ? ` · ${t.note}` : ''}
                     </span>
                   </span>
                   <span className="recurring-right">
@@ -195,11 +207,23 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const [day, setDay] = useState(initial?.dayOfMonth ?? 1)
   const [account, setAccount] = useState(initial?.account ?? '')
   const [showCategories, setShowCategories] = useState(false)
+  const [frequency, setFrequency] = useState(initial?.frequency ?? 'mensual')
+  // Periodo personalizado: número + unidad (días/semanas), guardado como días.
+  const initialInterval = initial?.intervalDays ?? 7
+  const initialInWeeks = initialInterval % 7 === 0 && initialInterval >= 7
+  const [intervalUnit, setIntervalUnit] = useState(initialInWeeks ? 'semanas' : 'dias')
+  const [intervalValue, setIntervalValue] = useState(
+    String(initialInWeeks ? initialInterval / 7 : initialInterval)
+  )
+  const [anchorDate, setAnchorDate] = useState(initial?.anchorDate ?? todayISO())
 
   const visibleCategories = categories.filter((c) => c.type === type)
   const subcategories = category ? getCategory(category).subcategories ?? [] : []
   const amountNum = Number(amount)
-  const canSave = amount !== '' && Number.isFinite(amountNum) && amountNum > 0 && category
+  const intervalDays = Math.max(1, Number(intervalValue) || 0) * (intervalUnit === 'semanas' ? 7 : 1)
+  const intervalOk = frequency !== 'dias' || (Number(intervalValue) >= 1 && !!anchorDate)
+  const canSave =
+    amount !== '' && Number.isFinite(amountNum) && amountNum > 0 && category && intervalOk
 
   const selectType = (t) => { setType(t); setCategory(''); setSubcategory('') }
 
@@ -207,13 +231,20 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
 
   const handleSave = () => {
     if (!canSave) return
-    onSave({
-      amount: amountNum, type, category,
+    const base = {
+      amount: amountNum,
+      type,
+      category,
       subcategory: subcategory || null,
       note: note.trim(),
-      dayOfMonth: Math.min(Math.max(Number(day) || 1, 1), 31),
       account: account || null,
-    })
+      frequency,
+    }
+    if (frequency === 'dias') {
+      onSave({ ...base, intervalDays, anchorDate, dayOfMonth: null })
+    } else {
+      onSave({ ...base, dayOfMonth: Math.min(Math.max(Number(day) || 1, 1), 31) })
+    }
   }
 
   return (
@@ -261,10 +292,63 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
           </>
         )}
 
-        <p className="picker-label">Día del mes</p>
-        <div className="amount-input-wrap">
-          <input className="amount-input-field" type="number" inputMode="numeric" min="1" max="31" value={day} onChange={(e) => setDay(e.target.value)} />
+        <p className="picker-label">Periodicidad</p>
+        <div className="type-toggle">
+          <button type="button" className={`type-toggle-btn ${frequency === 'mensual' ? 'selected' : ''}`} onClick={() => setFrequency('mensual')}>
+            Mensual
+          </button>
+          <button type="button" className={`type-toggle-btn ${frequency === 'dias' ? 'selected' : ''}`} onClick={() => setFrequency('dias')}>
+            Personalizada
+          </button>
         </div>
+
+        {frequency === 'mensual' ? (
+          <>
+            <p className="picker-label">Día del mes</p>
+            <div className="amount-input-wrap">
+              <input className="amount-input-field" type="number" inputMode="numeric" min="1" max="31" value={day} onChange={(e) => setDay(e.target.value)} />
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="picker-label">Se repite cada</p>
+            <div className="interval-row">
+              <input
+                className="amount-input-field interval-num"
+                type="number"
+                inputMode="numeric"
+                min="1"
+                value={intervalValue}
+                onChange={(e) => setIntervalValue(e.target.value)}
+              />
+              <div className="type-toggle interval-unit">
+                <button type="button" className={`type-toggle-btn ${intervalUnit === 'dias' ? 'selected' : ''}`} onClick={() => setIntervalUnit('dias')}>
+                  días
+                </button>
+                <button type="button" className={`type-toggle-btn ${intervalUnit === 'semanas' ? 'selected' : ''}`} onClick={() => setIntervalUnit('semanas')}>
+                  semanas
+                </button>
+              </div>
+            </div>
+            <div className="subcategory-picker">
+              {[7, 10, 14, 15, 21, 30].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  className={`subcategory-chip ${intervalUnit === 'dias' && Number(intervalValue) === n ? 'selected' : ''}`}
+                  onClick={() => { setIntervalUnit('dias'); setIntervalValue(String(n)) }}
+                >
+                  {n} días
+                </button>
+              ))}
+            </div>
+            <p className="picker-label">Primer registro</p>
+            <input className="date-input" type="date" value={anchorDate} onChange={(e) => setAnchorDate(e.target.value)} />
+            <p className="piggy-hint">
+              Se registrará cada {intervalDays} {intervalDays === 1 ? 'día' : 'días'} a partir de esa fecha.
+            </p>
+          </>
+        )}
 
         {accounts.length > 0 && (
           <>
@@ -303,6 +387,16 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
 }
 
 function nextRenewal(t, today) {
+  if ((t.frequency ?? 'mensual') === 'dias') {
+    const step = Math.max(1, Number(t.intervalDays) || 1)
+    let d = t.lastGeneratedDate ? addDaysISO(t.lastGeneratedDate, step) : t.anchorDate || today
+    let guard = 0
+    while (d < today && guard < 2000) {
+      d = addDaysISO(d, step)
+      guard++
+    }
+    return d
+  }
   const cur = currentMonthISO()
   let d = dateOfMonth(cur, t.dayOfMonth || 1)
   if (d < today) d = dateOfMonth(nextMonth(cur), t.dayOfMonth || 1)
@@ -443,7 +537,7 @@ export function RecurringConfirm() {
                   <div className="rc-item-info">
                     <div className="alert-name">{cat.name}{t.note ? ` · ${t.note}` : ''}</div>
                     <div className="alert-sub">
-                      {formatMoney(t.amount)}{occ.length > 1 ? ` × ${occ.length} meses` : ''} · día {t.dayOfMonth}
+                      {formatMoney(t.amount)}{occ.length > 1 ? ` × ${occ.length}` : ''} · {frequencyLabel(t)}
                     </div>
                   </div>
                 </div>

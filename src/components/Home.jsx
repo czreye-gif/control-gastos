@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
+import { TandaMovementEditor } from './Tandas'
 import { FacturablesAlert } from './GastosFacturables'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { BudgetBar } from './Budgets'
@@ -36,6 +37,7 @@ export default function Home() {
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
   const [editingTransfer, setEditingTransfer] = useState(null)
+  const [editingTandaMovement, setEditingTandaMovement] = useState(null)
 
   const { budgets } = useBudgets()
   const { accounts } = useAccounts()
@@ -290,6 +292,7 @@ export default function Home() {
             setShowAdd(true)
           }}
           onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
+          onSelectTandaMovement={(exp) => setEditingTandaMovement(exp)}
         />
       )}
 
@@ -319,6 +322,23 @@ export default function Home() {
 
       {editingTransfer && (
         <EditTransferSheet transfer={editingTransfer} onClose={() => setEditingTransfer(null)} />
+      )}
+
+      {editingTandaMovement && (
+        <TandaMovementEditor
+          expense={editingTandaMovement}
+          accounts={accounts.filter((a) => !a.piggy)}
+          onSave={async (data) => {
+            const op = updateExpense(editingTandaMovement.id, data)
+            setEditingTandaMovement(null)
+            try {
+              await op
+            } catch (e) {
+              console.error('No se pudo sincronizar la partida de tanda:', e)
+            }
+          }}
+          onClose={() => setEditingTandaMovement(null)}
+        />
       )}
     </div>
   )

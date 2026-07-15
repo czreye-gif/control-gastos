@@ -194,12 +194,16 @@ export default function Ahorros() {
       {editingDeposit && (
         <DepositEditor
           movement={editingDeposit}
-          onSave={async ({ amount, date }) => {
+          expenses={expenses}
+          accounts={accounts}
+          onSave={async ({ amount, date, source }) => {
             await updateDeposit({
               id: editingDeposit.id,
               depositId: editingDeposit.depositId ?? null,
               amount,
               date,
+              source,
+              piggyName: viewingPiggy?.name ?? (editingDeposit.note ?? '').replace('Depósito: ', ''),
             })
             setEditingDeposit(null)
           }}

@@ -92,17 +92,45 @@ export function useAccounts() {
     }
   }
 
-  // Corrige un depósito ya registrado (monto y/o fecha). Si tiene `depositId`
-  // actualiza sus dos partes (alcancía y cuenta origen); si es un depósito
-  // viejo sin ese enlace, ajusta solo su registro individual.
-  const updateDeposit = async ({ id, depositId, amount, date }) => {
+  // Corrige un depósito ya registrado (monto, fecha y cuenta de origen).
+  //  - La parte de entrada (income, en la alcancía) siempre se actualiza.
+  //  - La parte de salida (expense, en la cuenta origen) se actualiza a la
+  //    cuenta elegida; si el depósito viejo no tenía salida, se crea.
+  //  - Los depósitos viejos sin `depositId` se "reparan": se les asigna uno y
+  //    se les crea su parte de salida para dejarlos cuadrados.
+  const updateDeposit = async ({ id, depositId, amount, date, source, piggyName }) => {
     const expCol = collection(db, 'users', user.uid, 'expenses')
-    const data = { amount, ...(date ? { date } : {}) }
+    const dateData = date ? { date } : {}
+    const makeExpenseLeg = (dep, when) => ({
+      amount,
+      type: 'expense',
+      transfer: true,
+      category: null,
+      subcategory: null,
+      note: `A ${piggyName ?? 'alcancía'}`,
+      date: when || todayISO(),
+      account: source,
+      depositId: dep,
+      createdAt: serverTimestamp(),
+    })
+
     if (depositId) {
       const snap = await getDocs(query(expCol, where('depositId', '==', depositId)))
-      await Promise.all(snap.docs.map((d) => updateDoc(d.ref, data)))
+      const incomeLeg = snap.docs.find((d) => (d.data().type ?? 'expense') === 'income')
+      const expenseLeg = snap.docs.find((d) => (d.data().type ?? 'expense') === 'expense')
+      if (incomeLeg) await updateDoc(incomeLeg.ref, { amount, ...dateData })
+      const when = date || incomeLeg?.data().date
+      if (source) {
+        if (expenseLeg) await updateDoc(expenseLeg.ref, { amount, account: source, ...dateData })
+        else await addDoc(expCol, makeExpenseLeg(depositId, when))
+      } else if (expenseLeg) {
+        await deleteDoc(expenseLeg.ref)
+      }
     } else {
-      await updateDoc(doc(db, 'users', user.uid, 'expenses', id), data)
+      const newId = crypto.randomUUID()
+      const ref = doc(db, 'users', user.uid, 'expenses', id)
+      await updateDoc(ref, { amount, ...dateData, depositId: newId })
+      if (source) await addDoc(expCol, makeExpenseLeg(newId, date))
     }
   }
 

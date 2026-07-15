@@ -176,8 +176,10 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
   const [value, setValue] = useState('')
   const [source, setSource] = useState('')
   const amount = Number(value)
-  const canSave = value !== '' && Number.isFinite(amount) && amount > 0
   const sources = accounts.filter((a) => a.id !== piggy.id && !a.piggy)
+  // La cuenta de origen es obligatoria: todo ahorro sale de alguna cuenta, así
+  // el movimiento queda cuadrado (sale de la cuenta y entra a la alcancía).
+  const canSave = value !== '' && Number.isFinite(amount) && amount > 0 && !!source
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -204,9 +206,13 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
           />
         </div>
 
-        {sources.length > 0 && (
+        {sources.length === 0 ? (
+          <p className="piggy-hint">
+            Primero crea una cuenta (efectivo, banco, etc.) para poder indicar de dónde sale el ahorro.
+          </p>
+        ) : (
           <>
-            <p className="picker-label">Sale de (opcional)</p>
+            <p className="picker-label">Sale de</p>
             <div className="subcategory-picker">
               {sources.map((a) => (
                 <button
@@ -223,7 +229,7 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
         )}
 
         <div className="sheet-actions">
-          <button className="btn-primary" disabled={!canSave} onClick={() => onDeposit(amount, source || null)}>
+          <button className="btn-primary" disabled={!canSave} onClick={() => onDeposit(amount, source)}>
             Depositar
           </button>
         </div>
@@ -288,12 +294,22 @@ export function PiggyMovements({ piggy, expenses, onEditPiggy, onDeposit, onSele
   )
 }
 
-export function DepositEditor({ movement, onSave, onDelete, onClose }) {
+export function DepositEditor({ movement, expenses, accounts, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
+  const sources = (accounts ?? []).filter((a) => !a.piggy)
+  // Cuenta de origen actual = la parte de "salida" (gasto) ligada por depositId.
+  const currentSource = useMemo(() => {
+    if (!movement.depositId) return ''
+    const leg = (expenses ?? []).find(
+      (e) => e.depositId === movement.depositId && (e.type ?? 'expense') === 'expense'
+    )
+    return leg?.account ?? ''
+  }, [expenses, movement.depositId])
   const [value, setValue] = useState(String(movement.amount))
   const [date, setDate] = useState(movement.date)
+  const [source, setSource] = useState(currentSource)
   const amount = Number(value)
-  const canSave = value !== '' && Number.isFinite(amount) && amount > 0
+  const canSave = value !== '' && Number.isFinite(amount) && amount > 0 && !!source
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -319,6 +335,28 @@ export function DepositEditor({ movement, onSave, onDelete, onClose }) {
           />
         </div>
 
+        {sources.length === 0 ? (
+          <p className="piggy-hint">
+            Primero crea una cuenta para poder indicar de dónde sale el ahorro.
+          </p>
+        ) : (
+          <>
+            <p className="picker-label">Sale de</p>
+            <div className="subcategory-picker">
+              {sources.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  className={`subcategory-chip ${source === a.id ? 'selected' : ''}`}
+                  onClick={() => setSource(source === a.id ? '' : a.id)}
+                >
+                  {a.icon} {a.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         <p className="picker-label">Fecha</p>
         <input
           className="date-input"
@@ -341,7 +379,7 @@ export function DepositEditor({ movement, onSave, onDelete, onClose }) {
           >
             Eliminar
           </button>
-          <button className="btn-primary" disabled={!canSave} onClick={() => onSave({ amount, date })}>
+          <button className="btn-primary" disabled={!canSave} onClick={() => onSave({ amount, date, source })}>
             Guardar
           </button>
         </div>

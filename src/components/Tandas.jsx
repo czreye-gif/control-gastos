@@ -14,7 +14,7 @@ const FREQUENCIES = [
 
 const freqUnit = (id) => FREQUENCIES.find((f) => f.id === id)?.unit ?? 'periodo'
 
-export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
+export function TandaCard({ tanda, accounts, movements, onEdit, onSelectMovement, onContribute, onUndoContribute, onPayout, onUndoPayout }) {
   const confirm = useConfirm()
   const [sheet, setSheet] = useState(null) // null | 'contribute' | 'payout'
   const d = tandaDerived(tanda)
@@ -110,7 +110,12 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, on
         <div className="tanda-history">
           <p className="tanda-history-title">Historial</p>
           {[...movements].sort(sortByDateDesc).map((m) => (
-            <div key={m.id} className="tanda-history-item">
+            <button
+              key={m.id}
+              type="button"
+              className="tanda-history-item"
+              onClick={() => onSelectMovement && onSelectMovement(m)}
+            >
               <span className="tanda-history-label">
                 {m.type === 'income' ? 'Cobro del pozo' : 'Aportación'}
               </span>
@@ -118,7 +123,8 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onContribute, on
               <span className={`tanda-history-amount ${m.type === 'income' ? 'income-text' : 'expense-text'}`}>
                 {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
               </span>
-            </div>
+              <span className="tanda-history-edit" aria-hidden="true">✎</span>
+            </button>
           ))}
         </div>
       )}

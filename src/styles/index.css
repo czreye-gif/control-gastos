@@ -1788,14 +1788,21 @@ input, select {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 0;
+  width: 100%;
+  padding: 7px 0;
   font-size: 13px;
+  border: none;
   border-bottom: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  text-align: left;
 }
 .tanda-history-item:last-child { border-bottom: none; }
+.tanda-history-item:active { background: var(--border); }
 .tanda-history-label { flex: 1; color: var(--text); }
 .tanda-history-date { color: var(--text-muted); font-size: 12px; }
 .tanda-history-amount { font-weight: 600; min-width: 80px; text-align: right; }
+.tanda-history-edit { color: var(--text-muted); font-size: 12px; }
 
 /* Kardex de cuenta */
 .kardex-list { margin-top: 4px; }

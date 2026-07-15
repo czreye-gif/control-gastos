@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { AccountEditor, DepositSheet, PiggyMovements, DepositEditor } from './Accounts'
-import { TandaCard, TandaEditor } from './Tandas'
+import { TandaCard, TandaEditor, TandaMovementEditor } from './Tandas'
 import { useExpenses } from '../utils/useExpenses'
 import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
 import { useTandas } from '../utils/useTandas'
@@ -10,7 +10,7 @@ import { formatDayLabel } from '../utils/dates'
 
 export default function Ahorros() {
   const navigate = useNavigate()
-  const { expenses, loading: loadingExp } = useExpenses()
+  const { expenses, updateExpense, loading: loadingExp } = useExpenses()
   const {
     accounts,
     addAccount,
@@ -38,6 +38,7 @@ export default function Ahorros() {
   const [editingDeposit, setEditingDeposit] = useState(null) // depósito en edición
   const [depositing, setDepositing] = useState(null)
   const [editingTanda, setEditingTanda] = useState(null) // null | 'new' | tanda
+  const [editingTandaMovement, setEditingTandaMovement] = useState(null) // partida de tanda en edición
 
   const piggies = useMemo(
     () => computeBalances(accounts.filter((a) => a.piggy), expenses),
@@ -157,6 +158,7 @@ export default function Ahorros() {
               accounts={accounts}
               movements={tandaMovementsMap.get(t.id) ?? []}
               onEdit={() => setEditingTanda(t)}
+              onSelectMovement={(m) => setEditingTandaMovement(m)}
               onContribute={(date, account) => registerContribution(t, date, account)}
               onUndoContribute={() => undoContribution(t)}
               onPayout={(date, account) => registerPayout(t, date, account)}
@@ -232,6 +234,22 @@ export default function Ahorros() {
           onSave={saveTanda}
           onDelete={deleteTandaFn}
           onClose={() => setEditingTanda(null)}
+        />
+      )}
+      {editingTandaMovement && (
+        <TandaMovementEditor
+          expense={editingTandaMovement}
+          accounts={regularAccounts}
+          onSave={async (data) => {
+            const op = updateExpense(editingTandaMovement.id, data)
+            setEditingTandaMovement(null)
+            try {
+              await op
+            } catch (e) {
+              console.error('No se pudo sincronizar la partida de tanda:', e)
+            }
+          }}
+          onClose={() => setEditingTandaMovement(null)}
         />
       )}
     </div>

@@ -66,7 +66,12 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                         : cat.name}
                     {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
                     {!isTransfer && expense.billable && (
-                      <span className="expense-billable-badge" title="Facturable">🧾</span>
+                      <span
+                        className="expense-billable-badge"
+                        title={expense.invoiceStatus === 'facturado' ? 'Facturado' : 'Por facturar'}
+                      >
+                        {expense.invoiceStatus === 'facturado' ? '✅' : '🧾'}
+                      </span>
                     )}
                   </span>
                   {isTandaMovement ? (

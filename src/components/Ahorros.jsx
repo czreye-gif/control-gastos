@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
-import { AccountEditor, DepositSheet } from './Accounts'
+import { AccountEditor, DepositSheet, PiggyMovements, DepositEditor } from './Accounts'
 import { TandaCard, TandaEditor } from './Tandas'
 import { useExpenses } from '../utils/useExpenses'
 import { useAccounts, computeBalances, isPiggyLocked } from '../utils/useAccounts'
@@ -11,7 +11,16 @@ import { formatDayLabel } from '../utils/dates'
 export default function Ahorros() {
   const navigate = useNavigate()
   const { expenses, loading: loadingExp } = useExpenses()
-  const { accounts, addAccount, updateAccount, deleteAccount, deposit, loading: loadingAcc } = useAccounts()
+  const {
+    accounts,
+    addAccount,
+    updateAccount,
+    deleteAccount,
+    deposit,
+    updateDeposit,
+    deleteDeposit,
+    loading: loadingAcc,
+  } = useAccounts()
   const {
     tandas,
     loading: loadingTandas,
@@ -25,6 +34,8 @@ export default function Ahorros() {
   } = useTandas()
 
   const [editingPiggy, setEditingPiggy] = useState(null) // null | 'new' | alcancía
+  const [viewingPiggy, setViewingPiggy] = useState(null) // alcancía cuyos movimientos se ven
+  const [editingDeposit, setEditingDeposit] = useState(null) // depósito en edición
   const [depositing, setDepositing] = useState(null)
   const [editingTanda, setEditingTanda] = useState(null) // null | 'new' | tanda
 
@@ -99,7 +110,7 @@ export default function Ahorros() {
             const locked = isPiggyLocked(a)
             return (
               <div key={a.id} className={`account-card piggy ${locked ? 'locked' : ''}`}>
-                <button className="account-main" onClick={() => setEditingPiggy(a)}>
+                <button className="account-main" onClick={() => setViewingPiggy(a)}>
                   <span className="account-icon" style={{ background: a.color + '22', color: a.color }}>
                     {locked ? '🎁' : a.icon}
                   </span>
@@ -162,6 +173,41 @@ export default function Ahorros() {
           onSave={savePiggy}
           onDelete={deletePiggy}
           onClose={() => setEditingPiggy(null)}
+        />
+      )}
+      {viewingPiggy && (
+        <PiggyMovements
+          piggy={viewingPiggy}
+          expenses={expenses}
+          onEditPiggy={() => {
+            setEditingPiggy(viewingPiggy)
+            setViewingPiggy(null)
+          }}
+          onDeposit={() => {
+            setDepositing(viewingPiggy)
+            setViewingPiggy(null)
+          }}
+          onSelectDeposit={(m) => setEditingDeposit(m)}
+          onClose={() => setViewingPiggy(null)}
+        />
+      )}
+      {editingDeposit && (
+        <DepositEditor
+          movement={editingDeposit}
+          onSave={async ({ amount, date }) => {
+            await updateDeposit({
+              id: editingDeposit.id,
+              depositId: editingDeposit.depositId ?? null,
+              amount,
+              date,
+            })
+            setEditingDeposit(null)
+          }}
+          onDelete={async () => {
+            await deleteDeposit({ id: editingDeposit.id, depositId: editingDeposit.depositId ?? null })
+            setEditingDeposit(null)
+          }}
+          onClose={() => setEditingDeposit(null)}
         />
       )}
       {depositing && (

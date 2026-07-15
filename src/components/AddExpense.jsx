@@ -84,6 +84,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
     // veces creyendo que no pasaba nada.
     if (!canSave || saving) return
     setSaving(true)
+    const isBillable = type === 'expense' && billable
     onSave({
       amount,
       type,
@@ -92,7 +93,8 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
       note: note.trim(),
       date,
       account: account || null,
-      billable: type === 'expense' ? billable : false,
+      billable: isBillable,
+      invoiceStatus: isBillable ? initial?.invoiceStatus ?? 'pendiente' : null,
     })
   }
 

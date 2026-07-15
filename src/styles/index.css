@@ -1838,6 +1838,26 @@ input, select {
 }
 .muted-text { color: var(--text-muted); }
 
+/* Movimientos (depósitos) de una alcancía */
+.piggy-mov-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+}
+.piggy-mov-item:last-child { border-bottom: none; }
+.piggy-mov-item:active { background: var(--border); }
+.piggy-mov-label { flex: 1; font-size: 14px; min-width: 0; }
+.piggy-mov-date { font-size: 12px; color: var(--text-muted); }
+.piggy-mov-amount { font-weight: 600; min-width: 70px; text-align: right; }
+
 /* Gastos facturables */
 .billable-toggle {
   display: flex;
@@ -1901,6 +1921,62 @@ input, select {
   font-size: 13px;
   color: var(--text);
   margin-bottom: 12px;
+}
+
+.facturable-totals {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.facturable-total-pend { color: var(--text-muted); }
+.facturable-total-fact { color: var(--green); }
+
+.facturable-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.facturable-item {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+.facturable-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.invoice-chip {
+  flex-shrink: 0;
+  align-self: center;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.invoice-chip.pendiente {
+  background: rgba(234, 179, 8, 0.12);
+  border-color: rgba(234, 179, 8, 0.5);
+  color: #eab308;
+}
+.invoice-chip.facturado {
+  background: var(--green-light);
+  border-color: var(--green);
+  color: var(--green);
 }
 
 /* Banner de recordatorio en Inicio */

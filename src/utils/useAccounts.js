@@ -59,9 +59,11 @@ export function useAccounts() {
   }
 
   // Depositar en una alcancía crea un traspaso de entrada; si se indica una
-  // cuenta origen, también el traspaso de salida correspondiente.
+  // cuenta origen, también el traspaso de salida correspondiente. Ambas partes
+  // comparten un `depositId` para poder editarlas o eliminarlas juntas después.
   const deposit = async ({ piggy, amount, source }) => {
     const expRef = collection(db, 'users', user.uid, 'expenses')
+    const depositId = crypto.randomUUID()
     await addDoc(expRef, {
       amount,
       type: 'income',
@@ -71,6 +73,7 @@ export function useAccounts() {
       note: `Depósito: ${piggy.name}`,
       date: todayISO(),
       account: piggy.id,
+      depositId,
       createdAt: serverTimestamp(),
     })
     if (source) {
@@ -83,8 +86,34 @@ export function useAccounts() {
         note: `A ${piggy.name}`,
         date: todayISO(),
         account: source,
+        depositId,
         createdAt: serverTimestamp(),
       })
+    }
+  }
+
+  // Corrige un depósito ya registrado (monto y/o fecha). Si tiene `depositId`
+  // actualiza sus dos partes (alcancía y cuenta origen); si es un depósito
+  // viejo sin ese enlace, ajusta solo su registro individual.
+  const updateDeposit = async ({ id, depositId, amount, date }) => {
+    const expCol = collection(db, 'users', user.uid, 'expenses')
+    const data = { amount, ...(date ? { date } : {}) }
+    if (depositId) {
+      const snap = await getDocs(query(expCol, where('depositId', '==', depositId)))
+      await Promise.all(snap.docs.map((d) => updateDoc(d.ref, data)))
+    } else {
+      await updateDoc(doc(db, 'users', user.uid, 'expenses', id), data)
+    }
+  }
+
+  // Elimina un depósito completo (sus dos partes si están ligadas).
+  const deleteDeposit = async ({ id, depositId }) => {
+    const expCol = collection(db, 'users', user.uid, 'expenses')
+    if (depositId) {
+      const snap = await getDocs(query(expCol, where('depositId', '==', depositId)))
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)))
+    } else {
+      await deleteDoc(doc(db, 'users', user.uid, 'expenses', id))
     }
   }
 
@@ -186,6 +215,8 @@ export function useAccounts() {
     updateAccount,
     deleteAccount,
     deposit,
+    updateDeposit,
+    deleteDeposit,
     transfer,
     updateTransfer,
     deleteTransfer,

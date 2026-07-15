@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import TransferSheet from './TransferSheet'
 import { useExpenses } from '../utils/useExpenses'
-import { useAccounts, computeBalances, computeTransfers } from '../utils/useAccounts'
+import { useAccounts, computeBalances, computeTransfers, isPiggyLocked } from '../utils/useAccounts'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { COLOR_OPTIONS } from '../utils/categories'
 import { formatDayLabel, todayISO } from '../utils/dates'
@@ -225,6 +225,124 @@ export function DepositSheet({ piggy, accounts, onDeposit, onClose }) {
         <div className="sheet-actions">
           <button className="btn-primary" disabled={!canSave} onClick={() => onDeposit(amount, source || null)}>
             Depositar
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Lista de depósitos de una alcancía, con opción de corregir cada uno. En
+// alcancías sorpresa (bloqueadas) los montos van ocultos para no arruinar la
+// sorpresa; solo se revela el monto al abrir un depósito para editarlo.
+export function PiggyMovements({ piggy, expenses, onEditPiggy, onDeposit, onSelectDeposit, onClose }) {
+  const locked = isPiggyLocked(piggy)
+  const movements = useMemo(
+    () =>
+      expenses
+        .filter((e) => e.account === piggy.id && e.transfer)
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [expenses, piggy.id]
+  )
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>
+            <span style={{ color: piggy.color }}>{locked ? '🎁' : piggy.icon}</span> {piggy.name}
+          </h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        {locked && (
+          <p className="piggy-hint">
+            🎁 Alcancía sorpresa: los montos están ocultos hasta el {formatDayLabel(piggy.revealDate)}. Puedes
+            verlos y corregirlos al abrir cada depósito.
+          </p>
+        )}
+
+        {movements.length === 0 ? (
+          <p className="empty-state" style={{ fontSize: 13 }}>
+            Aún no hay depósitos en esta alcancía.
+          </p>
+        ) : (
+          <div className="kardex-list">
+            {movements.map((m) => (
+              <button key={m.id} className="piggy-mov-item" onClick={() => onSelectDeposit(m)}>
+                <span className="piggy-mov-label">{m.note || 'Depósito'}</span>
+                <span className="piggy-mov-date">{formatDayLabel(m.date)}</span>
+                <span className="piggy-mov-amount">{locked ? '••••' : formatMoney(m.amount)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="sheet-actions">
+          <button className="btn-ghost" onClick={onEditPiggy}>Editar alcancía</button>
+          <button className="btn-primary" onClick={onDeposit}>+ Depositar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function DepositEditor({ movement, onSave, onDelete, onClose }) {
+  const confirm = useConfirm()
+  const [value, setValue] = useState(String(movement.amount))
+  const [date, setDate] = useState(movement.date)
+  const amount = Number(value)
+  const canSave = value !== '' && Number.isFinite(amount) && amount > 0
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>Editar depósito</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        <p className="picker-label">Monto</p>
+        <div className="amount-input-wrap">
+          <span className="amount-prefix">$</span>
+          <input
+            className="amount-input-field"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="1"
+            value={value}
+            autoFocus
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </div>
+
+        <p className="picker-label">Fecha</p>
+        <input
+          className="date-input"
+          type="date"
+          value={date}
+          max={todayISO()}
+          onChange={(e) => setDate(e.target.value)}
+        />
+
+        <div className="sheet-actions">
+          <button
+            className="btn-danger"
+            onClick={async () => {
+              const ok = await confirm({
+                title: 'Eliminar depósito',
+                message: 'Se elimina el depósito y su traspaso. El saldo de la alcancía se ajusta.',
+              })
+              if (ok) onDelete()
+            }}
+          >
+            Eliminar
+          </button>
+          <button className="btn-primary" disabled={!canSave} onClick={() => onSave({ amount, date })}>
+            Guardar
           </button>
         </div>
       </div>

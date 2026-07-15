@@ -1,10 +1,14 @@
 import { useCategories } from '../contexts/CategoriesContext'
+import { isPiggyLocked } from '../utils/useAccounts'
 import { formatDayLabel } from '../utils/dates'
 
 export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSelectTandaMovement, accounts }) {
   const { getCategory, getSubcategory } = useCategories()
   // Mapa de cuentas para poder decir a qué cuenta pertenece cada traspaso.
   const accountsMap = new Map((accounts ?? []).map((a) => [a.id, a]))
+  // Alcancías sorpresa aún bloqueadas: sus depósitos ocultan el monto para no
+  // arruinar la sorpresa (solo se revela al editar el depósito en Ahorros).
+  const lockedPiggyIds = new Set((accounts ?? []).filter(isPiggyLocked).map((a) => a.id))
 
   if (expenses.length === 0) {
     return (
@@ -23,7 +27,7 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
         <div key={day} className="day-group">
           <div className="day-header">
             <span>{formatDayLabel(day)}</span>
-            <span>{formatMoney(netSum(items))}</span>
+            <span>{formatMoney(netSum(items, lockedPiggyIds))}</span>
           </div>
           {items.map((expense) => {
             const cat = getCategory(expense.category)
@@ -33,6 +37,7 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
             const isTandaMovement = isTransfer && !!expense.tandaId
             const editableTransfer = isTransfer && expense.transferId && onSelectTransfer
             const owner = isTransfer ? accountsMap.get(expense.account) : null
+            const hideAmount = lockedPiggyIds.has(expense.account)
             const handleClick = () => {
               if (isTandaMovement) return onSelectTandaMovement && onSelectTandaMovement(expense)
               if (isTransfer) return editableTransfer && onSelectTransfer(expense)
@@ -83,7 +88,7 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                   )}
                 </span>
                 <span className={`expense-amount ${isIncome ? 'income' : ''}`}>
-                  {isIncome ? '+' : '-'}{formatMoney(expense.amount)}
+                  {hideAmount ? '••••' : `${isIncome ? '+' : '-'}${formatMoney(expense.amount)}`}
                 </span>
               </button>
             )
@@ -103,8 +108,11 @@ function groupByDay(expenses) {
   return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1))
 }
 
-function netSum(items) {
-  return items.reduce((acc, i) => acc + (i.type === 'income' ? i.amount : -i.amount), 0)
+function netSum(items, hiddenIds) {
+  return items.reduce((acc, i) => {
+    if (hiddenIds && hiddenIds.has(i.account)) return acc
+    return acc + (i.type === 'income' ? i.amount : -i.amount)
+  }, 0)
 }
 
 export function formatMoney(value) {

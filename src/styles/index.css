@@ -1845,6 +1845,26 @@ input, select {
 }
 .muted-text { color: var(--text-muted); }
 
+/* Periodo personalizado en recurrentes */
+.interval-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 10px;
+}
+.interval-num {
+  flex: 0 0 84px;
+  text-align: center;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 10px;
+}
+.interval-unit {
+  flex: 1;
+  margin: 0;
+}
+
 /* Movimientos (depósitos) de una alcancía */
 .piggy-mov-item {
   display: flex;

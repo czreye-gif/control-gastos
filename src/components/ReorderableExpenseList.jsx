@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useCategories } from '../contexts/CategoriesContext'
+import { isPiggyLocked } from '../utils/useAccounts'
 import { formatMoney } from './ExpenseList'
 import { formatDayLabel } from '../utils/dates'
 
@@ -27,6 +28,7 @@ function moveWithinDay(list, dragId, overId) {
 export default function ReorderableExpenseList({ expenses, accounts, onReorderDay }) {
   const { getCategory, getSubcategory } = useCategories()
   const accountsMap = new Map((accounts ?? []).map((a) => [a.id, a]))
+  const lockedPiggyIds = new Set((accounts ?? []).filter(isPiggyLocked).map((a) => a.id))
   const [list, setList] = useState(expenses)
   const dragId = useRef(null)
   const dragDay = useRef(null)
@@ -131,8 +133,9 @@ export default function ReorderableExpenseList({ expenses, accounts, onReorderDa
                     : expense.note && <span className="expense-note">{expense.note}</span>}
                 </span>
                 <span className={`expense-amount ${isIncome ? 'income' : ''}`}>
-                  {isIncome ? '+' : '-'}
-                  {formatMoney(expense.amount)}
+                  {lockedPiggyIds.has(expense.account)
+                    ? '••••'
+                    : `${isIncome ? '+' : '-'}${formatMoney(expense.amount)}`}
                 </span>
               </div>
             )

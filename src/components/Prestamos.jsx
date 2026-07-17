@@ -41,6 +41,7 @@ export default function Prestamos() {
   const [editing, setEditing] = useState(null) // null | 'new' | préstamo
   const [paying, setPaying] = useState(null) // préstamo al que se le abona
   const [editingPayment, setEditingPayment] = useState(null) // { movement }
+  const [statement, setStatement] = useState(null) // préstamo cuyo estado de cuenta se ve
 
   const movementsByLoan = useLoanMovements(expenses)
   const payAccounts = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
@@ -84,6 +85,7 @@ export default function Prestamos() {
               onEdit={() => setEditing(loan)}
               onAddPayment={() => setPaying(loan)}
               onSelectPayment={(m) => setEditingPayment(m)}
+              onStatement={() => setStatement(loan)}
             />
           ))}
         </div>
@@ -155,11 +157,21 @@ export default function Prestamos() {
           onClose={() => setEditingPayment(null)}
         />
       )}
+      {statement && (
+        <LoanStatement
+          loan={statement}
+          movements={movementsByLoan.get(statement.id) ?? []}
+          onSelectPayment={(m) => setEditingPayment(m)}
+          onEditLoan={() => { setEditing(statement); setStatement(null) }}
+          onAddPayment={() => { setPaying(statement); setStatement(null) }}
+          onClose={() => setStatement(null)}
+        />
+      )}
     </div>
   )
 }
 
-function LoanCard({ loan, movements, derived, onEdit, onAddPayment, onSelectPayment }) {
+function LoanCard({ loan, movements, derived, onEdit, onAddPayment, onSelectPayment, onStatement }) {
   const isLent = loan.direction === 'lent'
   const overdue = loan.dueDate && !derived.settled && loan.dueDate < todayISO()
   const payments = [...movements].filter((m) => m.loanKind === 'payment').sort(sortByDateDesc)
@@ -193,13 +205,14 @@ function LoanCard({ loan, movements, derived, onEdit, onAddPayment, onSelectPaym
         )}
       </div>
 
-      {!derived.settled && (
-        <div className="loan-actions">
+      <div className="loan-actions">
+        {!derived.settled && (
           <button className="btn-primary" onClick={onAddPayment}>
             {isLent ? 'Registrar abono recibido' : 'Registrar pago'}
           </button>
-        </div>
-      )}
+        )}
+        <button className="btn-ghost" onClick={onStatement}>📄 Estado de cuenta</button>
+      </div>
 
       {payments.length > 0 && (
         <div className="tanda-history">
@@ -426,6 +439,84 @@ function PaymentEditor({ movement, accounts, onSave, onDelete, onClose }) {
             Eliminar
           </button>
           <button className="btn-primary" disabled={!canSave} onClick={() => onSave({ amount, date, account })}>Guardar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Estado de cuenta (desglose) de un préstamo: capital + cada abono con el
+// saldo corriente después de cada movimiento.
+function LoanStatement({ loan, movements, onSelectPayment, onEditLoan, onAddPayment, onClose }) {
+  const isLent = loan.direction === 'lent'
+  const rows = useMemo(() => {
+    const principal = movements.find((m) => m.loanKind === 'principal')
+    const payments = movements
+      .filter((m) => m.loanKind === 'payment')
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    const list = []
+    let bal = loan.amount || 0
+    list.push({
+      key: 'principal',
+      label: 'Préstamo (capital)',
+      date: principal?.date ?? loan.date,
+      delta: `+${formatMoney(loan.amount)}`,
+      balance: bal,
+      mov: null,
+    })
+    for (const p of payments) {
+      bal = Math.max(0, bal - p.amount)
+      list.push({
+        key: p.id,
+        label: isLent ? 'Abono recibido' : 'Pago',
+        date: p.date,
+        delta: `−${formatMoney(p.amount)}`,
+        balance: bal,
+        mov: p,
+      })
+    }
+    return list
+  }, [movements, loan.amount, loan.date, isLent])
+
+  const remaining = rows.length ? rows[rows.length - 1].balance : loan.amount
+  const settled = remaining <= 0.005
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>Estado de cuenta</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        <div className="loan-stmt-summary">
+          <span className="loan-stmt-name">{loan.name}</span>
+          <span className="loan-stmt-tag">{isLent ? '🫲 Me deben' : '🫱 Yo debo'}</span>
+        </div>
+        <div className="register-amount">
+          {settled ? 'Liquidado ✓' : formatMoney(remaining)}
+        </div>
+        {!settled && <p className="loan-stmt-caption">{isLent ? 'Saldo por cobrar' : 'Saldo por pagar'}</p>}
+
+        <div className="kardex-list">
+          {rows.map((r) => (
+            <button
+              key={r.key}
+              type="button"
+              className="loan-stmt-item"
+              onClick={() => (r.mov ? onSelectPayment(r.mov) : onEditLoan())}
+            >
+              <span className="loan-stmt-desc">{r.label}</span>
+              <span className={`loan-stmt-delta ${r.mov ? 'income-text' : 'muted-text'}`}>{r.delta}</span>
+              <span className="loan-stmt-date">{formatDayLabel(r.date)}</span>
+              <span className="loan-stmt-balance">Saldo {formatMoney(r.balance)}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="sheet-actions">
+          {!settled && <button className="btn-primary" onClick={onAddPayment}>{isLent ? 'Registrar abono' : 'Registrar pago'}</button>}
         </div>
       </div>
     </div>

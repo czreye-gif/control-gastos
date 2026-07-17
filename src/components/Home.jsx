@@ -13,6 +13,8 @@ import ExpenseList, { formatMoney } from './ExpenseList'
 import AddExpense from './AddExpense'
 import { TandaMovementEditor } from './Tandas'
 import { FacturablesAlert } from './GastosFacturables'
+import { LoansSummary, LoansAlert } from './Prestamos'
+import { useLoans } from '../utils/useLoans'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
@@ -42,6 +44,7 @@ export default function Home() {
   const { budgets } = useBudgets()
   const { accounts } = useAccounts()
   const { tandas } = useTandas()
+  const { loans } = useLoans()
   const { categories } = useCategories()
 
   // Tandas con aportación pendiente, ordenadas por la próxima fecha.
@@ -121,6 +124,9 @@ export default function Home() {
           <button className="icon-btn" onClick={() => navigate('/facturables')} aria-label="Gastos facturables">
             🧾
           </button>
+          <button className="icon-btn" onClick={() => navigate('/prestamos')} aria-label="Préstamos">
+            🤝
+          </button>
           <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
             ⚙️
           </button>
@@ -135,6 +141,7 @@ export default function Home() {
       </div>
 
       <FacturablesAlert />
+      <LoansAlert loans={loans} expenses={expenses} onOpen={() => navigate('/prestamos')} />
 
       <div className="balance-card">
         <div className="balance-item">
@@ -182,6 +189,8 @@ export default function Home() {
           </div>
         </>
       )}
+
+      <LoansSummary loans={loans} expenses={expenses} onOpen={() => navigate('/prestamos')} />
 
       <h3 className="section-title">Gastos</h3>
       <div className="stat-grid">

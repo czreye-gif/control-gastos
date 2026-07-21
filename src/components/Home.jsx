@@ -130,13 +130,6 @@ export default function Home() {
           <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
             ⚙️
           </button>
-          <button
-            className="icon-btn"
-            onClick={() => window.open(`${import.meta.env.BASE_URL}Manual-Usuario-ControlDeGastos.pdf`, '_blank')}
-            aria-label="Manual de usuario"
-          >
-            📖
-          </button>
         </div>
       </div>
 

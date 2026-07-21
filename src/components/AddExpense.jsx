@@ -332,7 +332,7 @@ function FavoritesPicker({ items, accounts, getCategory, getSubcategory, onSelec
             <h2>Favoritos</h2>
             <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
           </div>
-          <p className="picker-label">Tus movimientos más repetidos. Toca uno para llenarlo.</p>
+          <p className="picker-label">Tus movimientos más repetidos. Toca uno para llenarlo (el monto es el último usado; puedes ajustarlo).</p>
         </div>
         <div className="modal-body">
           {items.map((f, i) => {
@@ -354,7 +354,7 @@ function FavoritesPicker({ items, accounts, getCategory, getSubcategory, onSelec
                   </span>
                 </span>
                 <span className={`expense-amount ${f.type === 'income' ? 'income' : ''}`}>
-                  {f.type === 'income' ? '+' : '-'}{formatMoney(f.amount)}
+                  ~{f.type === 'income' ? '+' : '-'}{formatMoney(f.amount)}
                 </span>
               </button>
             )

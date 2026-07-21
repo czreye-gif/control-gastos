@@ -251,10 +251,14 @@ export function CategoriesProvider({ children }) {
     return cat.subcategories?.find((s) => s.id === subcategoryId) ?? null
   }
 
+  // Crea la subcategoría y devuelve su id (para poder auto-seleccionarla al
+  // instante desde el modal de nuevo movimiento). La escritura a Firestore es
+  // optimista (caché local inmediata), así que el id es usable de inmediato.
   const addSubcategory = (categoryId, { name, icon }) => {
     const cat = getCategory(categoryId)
     const subcategory = { id: crypto.randomUUID(), name, icon: icon ?? cat.icon }
-    return updateCategory(categoryId, { subcategories: [...(cat.subcategories ?? []), subcategory] })
+    updateCategory(categoryId, { subcategories: [...(cat.subcategories ?? []), subcategory] })
+    return subcategory.id
   }
 
   const deleteSubcategory = (categoryId, subcategoryId) => {

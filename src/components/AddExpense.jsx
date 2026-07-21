@@ -10,7 +10,7 @@ import { formatMoney } from './ExpenseList'
 const KEYS = ['7', '8', '9', '4', '5', '6', '1', '2', '3', '00', '0', 'back']
 
 export default function AddExpense({ initial, expenses, onSave, onDelete, onClose }) {
-  const { categories, getCategory, getSubcategory } = useCategories()
+  const { categories, getCategory, getSubcategory, addSubcategory } = useCategories()
   const { accounts } = useAccounts()
   const confirm = useConfirm()
   // El monto se maneja en centavos, como en las terminales bancarias:
@@ -26,6 +26,8 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
   const [saving, setSaving] = useState(false)
   const [showFavorites, setShowFavorites] = useState(false)
   const [showCategories, setShowCategories] = useState(false)
+  const [addingSub, setAddingSub] = useState(false)
+  const [newSubName, setNewSubName] = useState('')
 
   // Favoritos = movimientos que ya se repitieron 2+ veces con el mismo
   // monto, categoría, subcategoría y cuenta. No se crean a mano: salen solos
@@ -52,16 +54,33 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
     }
   }
 
+  const cancelNewSub = () => {
+    setAddingSub(false)
+    setNewSubName('')
+  }
+
   const selectType = (t) => {
     setType(t)
     setCategory('')
     setSubcategory('')
+    cancelNewSub()
     if (t === 'income') setBillable(false)
   }
 
   const selectCategory = (id) => {
     setCategory(id)
     setSubcategory('')
+    cancelNewSub()
+  }
+
+  // Crea una subcategoría en la categoría actual y la deja seleccionada, sin
+  // salir del modal.
+  const confirmNewSub = () => {
+    const name = newSubName.trim()
+    if (!name || !category) return
+    const id = addSubcategory(category, { name })
+    setSubcategory(id)
+    cancelNewSub()
   }
 
   // Llena todo el formulario con el favorito elegido de un solo toque;
@@ -173,7 +192,7 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
           ✏️ Editar categorías y subcategorías
         </button>
 
-        {subcategories.length > 0 && (
+        {category && (
           <>
             <p className="picker-label">Subcategoría (opcional)</p>
             <div className="subcategory-picker">
@@ -187,6 +206,32 @@ export default function AddExpense({ initial, expenses, onSave, onDelete, onClos
                   {s.name}
                 </button>
               ))}
+              {addingSub ? (
+                <span className="subcategory-add-inline">
+                  <input
+                    className="subcategory-add-input"
+                    type="text"
+                    autoFocus
+                    placeholder="Nueva subcategoría"
+                    value={newSubName}
+                    onChange={(e) => setNewSubName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmNewSub()
+                      if (e.key === 'Escape') cancelNewSub()
+                    }}
+                  />
+                  <button type="button" className="subcategory-add-ok" onClick={confirmNewSub} disabled={!newSubName.trim()} aria-label="Agregar">
+                    ✓
+                  </button>
+                  <button type="button" className="subcategory-add-cancel" onClick={cancelNewSub} aria-label="Cancelar">
+                    ✕
+                  </button>
+                </span>
+              ) : (
+                <button type="button" className="subcategory-chip add" onClick={() => setAddingSub(true)}>
+                  + Nueva
+                </button>
+              )}
             </div>
           </>
         )}

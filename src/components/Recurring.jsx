@@ -197,7 +197,7 @@ function ApplySheet({ t, accounts, commitOne, onClose }) {
 }
 
 function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
-  const { categories, getCategory } = useCategories()
+  const { categories, getCategory, addSubcategory } = useCategories()
   const confirm = useConfirm()
   const [amount, setAmount] = useState(initial ? String(initial.amount) : '')
   const [type, setType] = useState(initial?.type ?? 'expense')
@@ -207,6 +207,8 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const [day, setDay] = useState(initial?.dayOfMonth ?? 1)
   const [account, setAccount] = useState(initial?.account ?? '')
   const [showCategories, setShowCategories] = useState(false)
+  const [addingSub, setAddingSub] = useState(false)
+  const [newSubName, setNewSubName] = useState('')
   const [frequency, setFrequency] = useState(initial?.frequency ?? 'mensual')
   // Periodo personalizado: número + unidad (días/semanas), guardado como días.
   const initialInterval = initial?.intervalDays ?? 7
@@ -225,7 +227,17 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
   const canSave =
     amount !== '' && Number.isFinite(amountNum) && amountNum > 0 && category && intervalOk
 
-  const selectType = (t) => { setType(t); setCategory(''); setSubcategory('') }
+  const cancelNewSub = () => { setAddingSub(false); setNewSubName('') }
+  const selectType = (t) => { setType(t); setCategory(''); setSubcategory(''); cancelNewSub() }
+
+  // Crea una subcategoría en la categoría actual y la deja seleccionada.
+  const confirmNewSub = () => {
+    const name = newSubName.trim()
+    if (!name || !category) return
+    const id = addSubcategory(category, { name })
+    setSubcategory(id)
+    cancelNewSub()
+  }
 
   const goToCategories = () => setShowCategories(true)
 
@@ -271,7 +283,7 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
         <p className="picker-label">Categoría</p>
         <div className="category-grid">
           {visibleCategories.map((c) => (
-            <button key={c.id} type="button" className={`category-chip ${category === c.id ? 'selected' : ''}`} style={{ '--chip-color': c.color }} onClick={() => { setCategory(c.id); setSubcategory('') }}>
+            <button key={c.id} type="button" className={`category-chip ${category === c.id ? 'selected' : ''}`} style={{ '--chip-color': c.color }} onClick={() => { setCategory(c.id); setSubcategory(''); cancelNewSub() }}>
               <span className="category-icon">{c.icon}</span>
               <span>{c.name}</span>
             </button>
@@ -281,13 +293,33 @@ function RecurringEditor({ initial, accounts, onSave, onDelete, onClose }) {
           ✏️ Editar categorías y subcategorías
         </button>
 
-        {subcategories.length > 0 && (
+        {category && (
           <>
             <p className="picker-label">Subcategoría (opcional)</p>
             <div className="subcategory-picker">
               {subcategories.map((s) => (
                 <button key={s.id} type="button" className={`subcategory-chip ${subcategory === s.id ? 'selected' : ''}`} onClick={() => setSubcategory(subcategory === s.id ? '' : s.id)}>{s.name}</button>
               ))}
+              {addingSub ? (
+                <span className="subcategory-add-inline">
+                  <input
+                    className="subcategory-add-input"
+                    type="text"
+                    autoFocus
+                    placeholder="Nueva subcategoría"
+                    value={newSubName}
+                    onChange={(e) => setNewSubName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') confirmNewSub()
+                      if (e.key === 'Escape') cancelNewSub()
+                    }}
+                  />
+                  <button type="button" className="subcategory-add-ok" onClick={confirmNewSub} disabled={!newSubName.trim()} aria-label="Agregar">✓</button>
+                  <button type="button" className="subcategory-add-cancel" onClick={cancelNewSub} aria-label="Cancelar">✕</button>
+                </span>
+              ) : (
+                <button type="button" className="subcategory-chip add" onClick={() => setAddingSub(true)}>+ Nueva</button>
+              )}
             </div>
           </>
         )}

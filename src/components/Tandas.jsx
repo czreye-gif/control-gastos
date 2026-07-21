@@ -4,7 +4,24 @@ import { tandaDerived } from '../utils/useTandas'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { formatDayLabel, todayISO } from '../utils/dates'
 
+const sortByDateAsc = (a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
 const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : -1)
+
+// Asigna a cada movimiento el "número" (periodo/turno) que le corresponde:
+//  - Aportaciones: se ordenan por fecha y se emparejan con `d.periods` en
+//    orden, así que el número refleja el periodo real (respeta el salto del
+//    turno propio si `paysOnOwnTurn` es false).
+//  - Cobro del pozo: siempre corresponde al turno del usuario (`tanda.myNumber`).
+function numberMovements(tanda, movements, periods) {
+  const map = new Map()
+  const contributions = movements.filter((m) => m.type !== 'income').sort(sortByDateAsc)
+  contributions.forEach((m, i) => {
+    if (periods[i] != null) map.set(m.id, periods[i] + 1)
+  })
+  const payout = movements.find((m) => m.type === 'income')
+  if (payout) map.set(payout.id, tanda.myNumber)
+  return map
+}
 
 const FREQUENCIES = [
   { id: 'semanal', label: 'Semanal', unit: 'semana' },
@@ -20,6 +37,9 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onSelectMovement
   const d = tandaDerived(tanda)
   const account = tanda.account ? accounts.find((a) => a.id === tanda.account) : null
   const isMyTurn = d.myTurnReached && !tanda.payoutReceived
+  // Número (periodo) de la última aportación registrada, para mostrar "vas en
+  // el número X de N" junto al historial.
+  const currentNumber = d.paid > 0 ? (d.periods[d.paid - 1] ?? 0) + 1 : null
 
   const askUndoContribute = async () => {
     const ok = await confirm({
@@ -108,24 +128,30 @@ export function TandaCard({ tanda, accounts, movements, onEdit, onSelectMovement
 
       {movements && movements.length > 0 && (
         <div className="tanda-history">
-          <p className="tanda-history-title">Historial</p>
-          {[...movements].sort(sortByDateDesc).map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              className="tanda-history-item"
-              onClick={() => onSelectMovement && onSelectMovement(m)}
-            >
-              <span className="tanda-history-label">
-                {m.type === 'income' ? 'Cobro del pozo' : 'Aportación'}
-              </span>
-              <span className="tanda-history-date">{formatDayLabel(m.date)}</span>
-              <span className={`tanda-history-amount ${m.type === 'income' ? 'income-text' : 'expense-text'}`}>
-                {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
-              </span>
-              <span className="tanda-history-edit" aria-hidden="true">✎</span>
-            </button>
-          ))}
+          <p className="tanda-history-title">
+            Historial{currentNumber != null && ` · vas en el número ${currentNumber} de ${tanda.totalCount}`}
+          </p>
+          {(() => {
+            const numbers = numberMovements(tanda, movements, d.periods)
+            return [...movements].sort(sortByDateDesc).map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className="tanda-history-item"
+                onClick={() => onSelectMovement && onSelectMovement(m)}
+              >
+                <span className="tanda-history-number">{numbers.get(m.id) ?? '–'}</span>
+                <span className="tanda-history-label">
+                  {m.type === 'income' ? 'Cobro del pozo' : 'Aportación'}
+                </span>
+                <span className="tanda-history-date">{formatDayLabel(m.date)}</span>
+                <span className={`tanda-history-amount ${m.type === 'income' ? 'income-text' : 'expense-text'}`}>
+                  {m.type === 'income' ? '+' : '−'}{formatMoney(m.amount)}
+                </span>
+                <span className="tanda-history-edit" aria-hidden="true">✎</span>
+              </button>
+            ))
+          })()}
         </div>
       )}
 

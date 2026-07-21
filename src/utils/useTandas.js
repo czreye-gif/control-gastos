@@ -50,6 +50,10 @@ export function tandaDerived(t) {
     commitment,
     contributed,
     myTurnReached,
+    // Índices de periodo (0-based) en los que sí se aporta, en orden. Sirve
+    // para numerar cada aportación con el número de periodo real (1-based),
+    // que puede no ser consecutivo si se salta el turno propio.
+    periods,
   }
 }
 

@@ -464,6 +464,51 @@ input, select {
   color: var(--green);
 }
 
+.subcategory-chip.add {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+/* Crear subcategoría inline desde el modal de nuevo movimiento */
+.subcategory-add-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--card-2);
+  border: 1px solid var(--green);
+  border-radius: 999px;
+  padding: 3px 4px 3px 12px;
+}
+.subcategory-add-input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 13px;
+  width: 130px;
+}
+.subcategory-add-ok,
+.subcategory-add-cancel {
+  border: none;
+  border-radius: 999px;
+  width: 26px;
+  height: 26px;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.subcategory-add-ok {
+  background: var(--green);
+  color: #fff;
+}
+.subcategory-add-ok:disabled {
+  opacity: 0.5;
+}
+.subcategory-add-cancel {
+  background: var(--border);
+  color: var(--text);
+}
+
 /* Bank-terminal keypad */
 .keypad {
   display: grid;

@@ -10,6 +10,40 @@ import { formatDayLabel, todayISO } from '../utils/dates'
 
 const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : -1)
 
+// Acepta "mercadolibre.com/x" o "https://…". Descarta esquemas que no sean
+// http(s) (javascript:, data:…) para no abrir enlaces peligrosos.
+function normalizeUrl(raw) {
+  const s = (raw ?? '').trim()
+  if (!s) return ''
+  if (/^https?:\/\//i.test(s)) return s
+  if (/^[a-z][a-z0-9+.-]*:/i.test(s)) return ''
+  return `https://${s}`
+}
+
+function openLink(url) {
+  const safe = normalizeUrl(url)
+  if (safe) window.open(safe, '_blank', 'noopener,noreferrer')
+}
+
+// Comparte con la hoja nativa del sistema (WhatsApp, correo…). Si el navegador
+// no la soporta, copia el texto al portapapeles.
+async function shareText(text, title) {
+  if (navigator.share) {
+    try {
+      await navigator.share({ title, text })
+      return 'shared'
+    } catch {
+      return 'cancelled' // el usuario cerró la hoja
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text)
+    return 'copied'
+  } catch {
+    return 'failed'
+  }
+}
+
 // Agrupa los movimientos por projectId.
 function useProjectMovements(expenses) {
   return useMemo(() => {
@@ -281,6 +315,7 @@ function ProjectDetail({
       <PendingSection
         items={pending}
         cash={d.cash}
+        projectName={project.name}
         onAdd={() => setAddingPending(true)}
         onEdit={(item) => setEditingPending(item)}
         onToggleStatus={(item) =>
@@ -402,9 +437,35 @@ function ProjectDetail({
 
 // Lista de cosas que faltan comprar y aún no tienen dinero. Es un plan: no
 // mueve cuentas ni entra a reportes hasta que se convierte en gasto.
-function PendingSection({ items, cash, onAdd, onEdit, onToggleStatus, onBuy }) {
+function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatus, onBuy }) {
+  const [toast, setToast] = useState('')
   const total = items.reduce((a, p) => a + (p.amount || 0), 0)
   const missing = Math.max(0, total - Math.max(0, cash))
+
+  const notify = (result) => {
+    if (result === 'copied') setToast('Copiado al portapapeles ✓')
+    else if (result === 'failed') setToast('No se pudo compartir')
+    else return
+    setTimeout(() => setToast(''), 2500)
+  }
+
+  const shareOne = async (p) => {
+    const link = normalizeUrl(p.link)
+    const text = `${p.concept} — ${formatMoney(p.amount)}${link ? `\n${link}` : ''}`
+    notify(await shareText(text, projectName))
+  }
+
+  const shareList = async () => {
+    const lines = items.map((p) => {
+      const link = normalizeUrl(p.link)
+      return `• ${p.concept} — ${formatMoney(p.amount)}${link ? `\n  ${link}` : ''}`
+    })
+    const text =
+      `Pendientes por comprar — ${projectName}\n\n${lines.join('\n')}\n\n` +
+      `Total pendiente: ${formatMoney(total)}\n` +
+      (missing > 0 ? `Falta depositar: ${formatMoney(missing)}` : 'Alcanza con lo que hay en caja')
+    notify(await shareText(text, `Pendientes — ${projectName}`))
+  }
 
   return (
     <div className="project-block pending-block">
@@ -433,6 +494,14 @@ function PendingSection({ items, cash, onAdd, onEdit, onToggleStatus, onBuy }) {
                   >
                     {p.status === 'solicitado' ? '📞 Solicitado' : '○ Por pedir'}
                   </button>
+                  {normalizeUrl(p.link) && (
+                    <button className="pending-link" onClick={() => openLink(p.link)} aria-label="Abrir enlace">
+                      🔗 Ver
+                    </button>
+                  )}
+                  <button className="pending-share" onClick={() => shareOne(p)} aria-label="Compartir">
+                    ↗
+                  </button>
                   <button className="pending-buy" onClick={() => onBuy(p)}>Ya lo compré</button>
                 </div>
               </div>
@@ -451,8 +520,14 @@ function PendingSection({ items, cash, onAdd, onEdit, onToggleStatus, onBuy }) {
             <span>{missing > 0 ? 'Falta pedirle al socio' : 'Alcanza con lo que hay'}</span>
             <span className={missing > 0 ? 'expense-text' : 'income-text'}>{formatMoney(missing)}</span>
           </div>
+
+          <button className="pending-share-list" onClick={shareList}>
+            ↗ Compartir lista con el socio
+          </button>
         </>
       )}
+
+      {toast && <p className="pending-toast">{toast}</p>}
     </div>
   )
 }
@@ -461,8 +536,12 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const [concept, setConcept] = useState(initial?.concept ?? '')
   const [value, setValue] = useState(initial ? String(initial.amount) : '')
+  const [link, setLink] = useState(initial?.link ?? '')
   const amount = Number(value)
-  const canSave = concept.trim() !== '' && value !== '' && Number.isFinite(amount) && amount > 0
+  const safeLink = normalizeUrl(link)
+  const badLink = link.trim() !== '' && !safeLink
+  const canSave =
+    concept.trim() !== '' && value !== '' && Number.isFinite(amount) && amount > 0 && !badLink
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -497,6 +576,25 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
+        <p className="picker-label">Enlace de dónde comprarlo (opcional)</p>
+        <input
+          className="note-input"
+          type="url"
+          inputMode="url"
+          placeholder="Pega aquí el link de la tienda"
+          value={link}
+          onChange={(e) => setLink(e.target.value)}
+        />
+        {badLink ? (
+          <p className="tanda-error">⚠️ Ese enlace no es válido. Debe empezar con http:// o https://</p>
+        ) : (
+          safeLink && (
+            <button className="link-btn" onClick={() => openLink(safeLink)}>
+              🔗 Probar enlace
+            </button>
+          )
+        )}
+
         <p className="piggy-hint">
           Es solo un plan: no mueve tus cuentas hasta que lo marques como comprado.
         </p>
@@ -519,7 +617,7 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
           <button
             className="btn-primary"
             disabled={!canSave}
-            onClick={() => onSave({ concept: concept.trim(), amount })}
+            onClick={() => onSave({ concept: concept.trim(), amount, link: safeLink })}
           >
             Guardar
           </button>

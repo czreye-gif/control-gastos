@@ -198,10 +198,10 @@ export function useProjects() {
   const setPending = (project, list) =>
     updateDoc(doc(db, 'users', user.uid, 'projects', project.id), { pending: list })
 
-  const addPending = (project, { concept, amount }) =>
+  const addPending = (project, { concept, amount, link }) =>
     setPending(project, [
       ...(project.pending ?? []),
-      { id: crypto.randomUUID(), concept: concept.trim(), amount, status: 'topedir' },
+      { id: crypto.randomUUID(), concept: concept.trim(), amount, link: link || '', status: 'topedir' },
     ])
 
   const updatePending = (project, itemId, data) =>

@@ -14,7 +14,9 @@ import AddExpense from './AddExpense'
 import { TandaMovementEditor } from './Tandas'
 import { FacturablesAlert } from './GastosFacturables'
 import { LoansSummary, LoansAlert } from './Prestamos'
+import { ProjectsSummary } from './Proyectos'
 import { useLoans } from '../utils/useLoans'
+import { useProjects } from '../utils/useProjects'
 import { EditTransferSheet, transferForLeg } from './TransferSheet'
 import { BudgetBar } from './Budgets'
 import { useExpenses } from '../utils/useExpenses'
@@ -45,6 +47,7 @@ export default function Home() {
   const { accounts } = useAccounts()
   const { tandas } = useTandas()
   const { loans } = useLoans()
+  const { projects } = useProjects()
   const { categories } = useCategories()
 
   // Tandas con aportación pendiente, ordenadas por la próxima fecha.
@@ -127,6 +130,9 @@ export default function Home() {
           <button className="icon-btn" onClick={() => navigate('/prestamos')} aria-label="Préstamos">
             🤝
           </button>
+          <button className="icon-btn" onClick={() => navigate('/proyectos')} aria-label="Proyectos">
+            🏗️
+          </button>
           <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
             ⚙️
           </button>
@@ -184,6 +190,7 @@ export default function Home() {
       )}
 
       <LoansSummary loans={loans} expenses={expenses} onOpen={() => navigate('/prestamos')} />
+      <ProjectsSummary projects={projects} expenses={expenses} onOpen={() => navigate('/proyectos')} />
 
       <h3 className="section-title">Gastos</h3>
       <div className="stat-grid">
@@ -295,6 +302,7 @@ export default function Home() {
           }}
           onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
           onSelectTandaMovement={(exp) => setEditingTandaMovement(exp)}
+          onSelectProjectMovement={() => navigate('/proyectos')}
         />
       )}
 

@@ -2020,6 +2020,112 @@ input, select {
 .loan-stmt-date { grid-column: 1; grid-row: 2; font-size: 12px; color: var(--text-muted); }
 .loan-stmt-balance { grid-column: 2; grid-row: 2; font-size: 12px; color: var(--text-muted); text-align: right; }
 
+/* Proyectos (libro diario de gestoría) */
+.project-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 8px; }
+.project-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  text-align: left;
+}
+.project-card-head { display: flex; align-items: center; gap: 8px; }
+.project-card-name { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; }
+.project-tag {
+  font-size: 11px;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+.project-card-partner { font-size: 12px; color: var(--text-muted); }
+.project-card-figures { display: flex; gap: 10px; margin-top: 4px; }
+.project-fig { flex: 1; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.project-fig-label { font-size: 11px; color: var(--text-muted); }
+.project-fig-value { font-size: 14px; font-weight: 700; color: var(--text); }
+
+.project-summary { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.project-block {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+.project-block-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.project-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text);
+  padding: 3px 0;
+}
+.project-row.total {
+  border-top: 1px solid var(--border);
+  margin-top: 6px;
+  padding-top: 8px;
+  font-weight: 700;
+  font-size: 14px;
+}
+.project-cost-line { font-size: 12px; color: var(--text-muted); margin: 0 0 12px; }
+.project-add-btn { width: 100%; margin-bottom: 16px; }
+
+.ledger-list { display: flex; flex-direction: column; }
+.ledger-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: none;
+  cursor: pointer;
+  text-align: left;
+}
+.ledger-item:last-child { border-bottom: none; }
+.ledger-item:active { background: var(--border); }
+.ledger-main { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ledger-concept {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ledger-meta { font-size: 12px; color: var(--text-muted); }
+.ledger-amounts { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.ledger-amount { font-size: 14px; font-weight: 600; }
+.ledger-charged { font-size: 11px; color: var(--text-muted); }
+
+.kind-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.kind-chip {
+  flex: 1 1 calc(50% - 4px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+.kind-chip.selected { border-color: var(--green); background: var(--green-light); }
+.kind-chip-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.kind-chip-hint { font-size: 11px; color: var(--text-muted); }
+
 /* Periodo personalizado en recurrentes */
 .interval-row {
   display: flex;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ExpenseList, { formatMoney } from './ExpenseList'
 import ReorderableExpenseList from './ReorderableExpenseList'
 import AddExpense from './AddExpense'
@@ -16,6 +17,7 @@ export default function Movements() {
   const { expenses, loading, updateExpense, deleteExpense, reorderDay } = useExpenses()
   const { categories, getCategory, getSubcategory } = useCategories()
   const { accounts } = useAccounts()
+  const navigate = useNavigate()
 
   const [search, setSearch] = useState('')
   const [type, setType] = useState('all') // all | expense | income
@@ -288,6 +290,7 @@ export default function Movements() {
             onSelect={(expense) => setEditing(expense)}
             onSelectTransfer={(leg) => setEditingTransfer(transferForLeg(expenses, leg))}
             onSelectTandaMovement={(exp) => setEditingTandaMovement(exp)}
+            onSelectProjectMovement={() => navigate('/proyectos')}
           />
           {hasMore && (
             <button className="load-more-btn" onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>

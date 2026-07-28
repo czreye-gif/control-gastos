@@ -2,7 +2,7 @@ import { useCategories } from '../contexts/CategoriesContext'
 import { isPiggyLocked } from '../utils/useAccounts'
 import { formatDayLabel } from '../utils/dates'
 
-export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSelectTandaMovement, accounts }) {
+export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSelectTandaMovement, onSelectProjectMovement, accounts }) {
   const { getCategory, getSubcategory } = useCategories()
   // Mapa de cuentas para poder decir a qué cuenta pertenece cada traspaso.
   const accountsMap = new Map((accounts ?? []).map((a) => [a.id, a]))
@@ -35,10 +35,12 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
             const isIncome = expense.type === 'income'
             const isTransfer = expense.transfer
             const isTandaMovement = isTransfer && !!expense.tandaId
+            const isProjectMovement = !!expense.projectId
             const editableTransfer = isTransfer && expense.transferId && onSelectTransfer
             const owner = isTransfer ? accountsMap.get(expense.account) : null
             const hideAmount = lockedPiggyIds.has(expense.account)
             const handleClick = () => {
+              if (isProjectMovement) return onSelectProjectMovement && onSelectProjectMovement(expense)
               if (isTandaMovement) return onSelectTandaMovement && onSelectTandaMovement(expense)
               if (isTransfer) return editableTransfer && onSelectTransfer(expense)
               return onSelect(expense)
@@ -49,7 +51,11 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                 className="expense-item"
                 onClick={handleClick}
               >
-                {isTandaMovement ? (
+                {isProjectMovement ? (
+                  <span className="expense-icon" style={{ background: '#0ea5e922', color: '#0ea5e9' }}>
+                    🏗️
+                  </span>
+                ) : isTandaMovement ? (
                   <span className="expense-icon" style={{ background: '#7c3aed22', color: '#7c3aed' }}>
                     🤝
                   </span>
@@ -64,11 +70,13 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                 )}
                 <span className="expense-info">
                   <span className="expense-category">
-                    {isTandaMovement
-                      ? (expense.note || 'Tanda')
-                      : isTransfer
-                        ? (owner ? `${owner.icon} ${owner.name}` : expense.note || 'Traspaso')
-                        : cat.name}
+                    {isProjectMovement
+                      ? (expense.note || 'Proyecto')
+                      : isTandaMovement
+                        ? (expense.note || 'Tanda')
+                        : isTransfer
+                          ? (owner ? `${owner.icon} ${owner.name}` : expense.note || 'Traspaso')
+                          : cat.name}
                     {!isTransfer && sub && <span className="expense-subcategory"> · {sub.name}</span>}
                     {!isTransfer && expense.billable && (
                       <span
@@ -79,7 +87,9 @@ export default function ExpenseList({ expenses, onSelect, onSelectTransfer, onSe
                       </span>
                     )}
                   </span>
-                  {isTandaMovement ? (
+                  {isProjectMovement ? (
+                    <span className="expense-note">Proyecto · toca para abrirlo</span>
+                  ) : isTandaMovement ? (
                     <span className="expense-note">{expense.type === 'income' ? 'Cobro del pozo' : 'Aportación'}</span>
                   ) : isTransfer ? (
                     <span className="expense-note">{owner ? expense.note || 'Traspaso' : 'Traspaso'}</span>

@@ -200,10 +200,16 @@ function ProjectDetail({
             <span>Gastado del fondo</span>
             <span className="expense-text">−{formatMoney(d.chargedFund)}</span>
           </div>
-          {d.fees > 0 && (
+          {d.feesFromFund > 0 && (
             <div className="project-row">
-              <span>Mi honorario</span>
-              <span className="expense-text">−{formatMoney(d.fees)}</span>
+              <span>Mi honorario (del fondo)</span>
+              <span className="expense-text">−{formatMoney(d.feesFromFund)}</span>
+            </div>
+          )}
+          {d.reimbursedFromFund > 0 && (
+            <div className="project-row">
+              <span>Me reembolsé del fondo</span>
+              <span className="expense-text">−{formatMoney(d.reimbursedFromFund)}</span>
             </div>
           )}
           {d.refunded > 0 && (
@@ -450,17 +456,36 @@ function MovementSheet({ initial, accounts, onSave, onDelete, onClose }) {
   )
   const [concept, setConcept] = useState(initial?.concept ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
-  const [account, setAccount] = useState(initial?.account ?? (accounts[0]?.id ?? ''))
   const [paidFrom, setPaidFrom] = useState(initial?.paidFrom ?? 'fund')
   const [category, setCategory] = useState(initial?.category ?? '')
 
+  // El honorario y el reembolso pueden salir del propio fondo (el dinero ya
+  // está en tu cuenta: solo deja de ser del socio, no mueve saldo) o pagarse
+  // aparte (entra dinero nuevo). Por defecto salen del fondo, que es lo común.
+  const takenFromFund = (k) => k === 'fee' || k === 'reimbursement'
+  const [fromFund, setFromFund] = useState(
+    initial ? takenFromFund(initial.projectKind) && !initial.account : takenFromFund(kind)
+  )
+  const [account, setAccount] = useState(
+    initial?.account ?? (takenFromFund(kind) ? '' : accounts[0]?.id ?? '')
+  )
+
+  const selectKind = (k) => {
+    setKind(k)
+    if (takenFromFund(k)) {
+      setFromFund(true)
+      setAccount('')
+    } else {
+      setFromFund(false)
+      setAccount((a) => a || accounts[0]?.id || '')
+    }
+  }
+
   const amount = Number(value)
   const charged = chargedValue === '' ? null : Number(chargedValue)
-  // El honorario y el reembolso pueden salir del propio fondo (no mueven saldo
-  // de cuentas) o pagarse aparte (sí lo mueven).
-  const optionalAccount = kind === 'fee' || kind === 'reimbursement'
-  const canSave =
-    value !== '' && Number.isFinite(amount) && amount > 0 && (optionalAccount || !!account)
+  const optionalAccount = takenFromFund(kind)
+  const needsAccount = !(optionalAccount && fromFund)
+  const canSave = value !== '' && Number.isFinite(amount) && amount > 0 && (!needsAccount || !!account)
   const incomeCategories = categories.filter((c) => c.type === 'income')
 
   const label =
@@ -488,7 +513,7 @@ function MovementSheet({ initial, accounts, onSave, onDelete, onClose }) {
                   key={k.id}
                   type="button"
                   className={`kind-chip ${kind === k.id ? 'selected' : ''}`}
-                  onClick={() => setKind(k.id)}
+                  onClick={() => selectKind(k.id)}
                 >
                   <span className="kind-chip-label">{k.label}</span>
                   <span className="kind-chip-hint">{k.hint}</span>
@@ -566,11 +591,36 @@ function MovementSheet({ initial, accounts, onSave, onDelete, onClose }) {
           onChange={(e) => setConcept(e.target.value)}
         />
 
-        {accounts.length > 0 && (
+        {optionalAccount && (
           <>
-            <p className="picker-label">
-              {optionalAccount ? 'Cuenta (déjala vacía si salió del fondo)' : 'Cuenta'}
+            <p className="picker-label">¿De dónde sale?</p>
+            <div className="type-toggle">
+              <button
+                type="button"
+                className={`type-toggle-btn ${fromFund ? 'selected' : ''}`}
+                onClick={() => { setFromFund(true); setAccount('') }}
+              >
+                Del fondo
+              </button>
+              <button
+                type="button"
+                className={`type-toggle-btn ${!fromFund ? 'selected' : ''}`}
+                onClick={() => { setFromFund(false); setAccount(account || accounts[0]?.id || '') }}
+              >
+                Me lo pagaron aparte
+              </button>
+            </div>
+            <p className="piggy-hint">
+              {fromFund
+                ? 'Sale del dinero del socio que ya tienes: baja la caja del proyecto y no mueve el saldo de tus cuentas.'
+                : 'Entra dinero nuevo a la cuenta que elijas; la caja del proyecto no cambia.'}
             </p>
+          </>
+        )}
+
+        {accounts.length > 0 && needsAccount && (
+          <>
+            <p className="picker-label">Cuenta</p>
             <div className="subcategory-picker">
               {accounts.map((a) => (
                 <button

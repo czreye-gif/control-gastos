@@ -104,8 +104,12 @@ export function projectDerived(movements = []) {
     advanced,
     chargedAdvanced, // lo cobrado al socio por lo que adelanté
     reimbursed,
+    reimbursedFromFund, // reembolsos que tomé del propio fondo
+    reimbursedPaid, // reembolsos que me pagaron aparte
     refunded,
     fees,
+    feesFromFund, // honorarios tomados del fondo (sí bajan la caja)
+    feesPaidApart, // honorarios pagados aparte (no bajan la caja)
     totalCost,
     totalCharged,
     margin,

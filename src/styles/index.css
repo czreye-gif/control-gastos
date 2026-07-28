@@ -2140,6 +2140,23 @@ input, select {
 }
 .pending-link { color: #0ea5e9; border-color: rgba(14, 165, 233, 0.5); }
 .pending-share { color: var(--text); }
+
+/* "Por pedir" parpadea para que no se te olvide pedirle el dinero al socio.
+   Al marcarlo como solicitado deja de llamar la atención. */
+@keyframes pending-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.3); }
+}
+.pending-status:not(.asked) {
+  border-color: #eab308;
+  color: #eab308;
+  background: rgba(234, 179, 8, 0.12);
+  font-weight: 600;
+  animation: pending-pulse 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending-status:not(.asked) { animation: none; }
+}
 .pending-share-list {
   width: 100%;
   margin-top: 10px;
@@ -2158,6 +2175,12 @@ input, select {
   color: var(--green);
   text-align: center;
 }
+.pending-flow-hint {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 .pending-status.asked {
   border-color: var(--green);
   background: var(--green-light);
@@ -2165,9 +2188,10 @@ input, select {
 }
 .pending-buy {
   margin-left: auto;
+  background: var(--green);
   border-color: var(--green);
-  color: var(--green);
-  font-weight: 600;
+  color: #0b1220;
+  font-weight: 700;
 }
 .project-add-btn { width: 100%; margin-bottom: 16px; }
 

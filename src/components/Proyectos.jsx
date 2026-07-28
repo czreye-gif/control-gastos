@@ -502,7 +502,7 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
                   <button className="pending-share" onClick={() => shareOne(p)} aria-label="Compartir">
                     ↗
                   </button>
-                  <button className="pending-buy" onClick={() => onBuy(p)}>Ya lo compré</button>
+                  <button className="pending-buy" onClick={() => onBuy(p)}>✓ Ya lo compré</button>
                 </div>
               </div>
             ))}
@@ -520,6 +520,11 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
             <span>{missing > 0 ? 'Falta pedirle al socio' : 'Alcanza con lo que hay'}</span>
             <span className={missing > 0 ? 'expense-text' : 'income-text'}>{formatMoney(missing)}</span>
           </div>
+
+          <p className="pending-flow-hint">
+            Toca <strong>○ Por pedir</strong> cuando ya se lo pediste al socio, y <strong>✓ Ya lo compré</strong>
+            cuando lo compres: pasa al libro diario como gasto.
+          </p>
 
           <button className="pending-share-list" onClick={shareList}>
             ↗ Compartir lista con el socio
@@ -811,6 +816,12 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
           </>
         )}
         {isEdit && <p className="piggy-hint">{KIND_LABEL[kind]}</p>}
+        {prefill && (
+          <p className="piggy-hint">
+            Al guardarlo saldrá de <strong>Pendientes por comprar</strong> y entrará al libro diario como gasto.
+            Ajusta el monto si costó distinto.
+          </p>
+        )}
 
         <p className="picker-label">{label}</p>
         <div className="amount-input-wrap">

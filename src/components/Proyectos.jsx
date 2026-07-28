@@ -502,7 +502,11 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
                   <button className="pending-share" onClick={() => shareOne(p)} aria-label="Compartir">
                     ↗
                   </button>
-                  <button className="pending-buy" onClick={() => onBuy(p)}>✓ Ya lo compré</button>
+                  {/* Solo se puede comprar lo que ya se pidió: así el botón no
+                      da la impresión de que el pendiente ya está resuelto. */}
+                  {p.status === 'solicitado' && (
+                    <button className="pending-buy" onClick={() => onBuy(p)}>✓ Ya lo compré</button>
+                  )}
                 </div>
               </div>
             ))}
@@ -522,8 +526,8 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
           </div>
 
           <p className="pending-flow-hint">
-            Toca <strong>○ Por pedir</strong> cuando ya se lo pediste al socio, y <strong>✓ Ya lo compré</strong>
-            cuando lo compres: pasa al libro diario como gasto.
+            Toca <strong>○ Por pedir</strong> cuando ya se lo pediste al socio. Entonces aparecerá
+            <strong> ✓ Ya lo compré</strong>, que al usarlo pasa el pendiente al libro diario como gasto.
           </p>
 
           <button className="pending-share-list" onClick={shareList}>

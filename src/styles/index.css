@@ -2141,11 +2141,15 @@ input, select {
 .pending-link { color: #0ea5e9; border-color: rgba(14, 165, 233, 0.5); }
 .pending-share { color: var(--text); }
 
-/* "Por pedir" parpadea para que no se te olvide pedirle el dinero al socio.
-   Al marcarlo como solicitado deja de llamar la atención. */
+/* El parpadeo marca siempre el siguiente paso: primero pedirle el dinero al
+   socio y, una vez solicitado, registrar la compra. */
 @keyframes pending-pulse {
   0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
   50% { box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.3); }
+}
+@keyframes buy-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+  50% { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.35); }
 }
 .pending-status:not(.asked) {
   border-color: #eab308;
@@ -2154,8 +2158,12 @@ input, select {
   font-weight: 600;
   animation: pending-pulse 1.5s ease-in-out infinite;
 }
+.pending-buy {
+  animation: buy-pulse 1.5s ease-in-out infinite;
+}
 @media (prefers-reduced-motion: reduce) {
-  .pending-status:not(.asked) { animation: none; }
+  .pending-status:not(.asked),
+  .pending-buy { animation: none; }
 }
 .pending-share-list {
   width: 100%;

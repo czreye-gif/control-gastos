@@ -192,6 +192,27 @@ export function useProjects() {
     })
   }
 
+  // --- Pendientes por comprar ---
+  // Son un plan, no dinero movido: viven como arreglo dentro del proyecto y no
+  // tocan cuentas ni reportes hasta que se convierten en gasto.
+  const setPending = (project, list) =>
+    updateDoc(doc(db, 'users', user.uid, 'projects', project.id), { pending: list })
+
+  const addPending = (project, { concept, amount }) =>
+    setPending(project, [
+      ...(project.pending ?? []),
+      { id: crypto.randomUUID(), concept: concept.trim(), amount, status: 'topedir' },
+    ])
+
+  const updatePending = (project, itemId, data) =>
+    setPending(
+      project,
+      (project.pending ?? []).map((p) => (p.id === itemId ? { ...p, ...data } : p))
+    )
+
+  const deletePending = (project, itemId) =>
+    setPending(project, (project.pending ?? []).filter((p) => p.id !== itemId))
+
   const updateMovement = (movementId, data) =>
     updateDoc(doc(db, 'users', user.uid, 'expenses', movementId), data)
 
@@ -207,5 +228,8 @@ export function useProjects() {
     addMovement,
     updateMovement,
     deleteMovement,
+    addPending,
+    updatePending,
+    deletePending,
   }
 }

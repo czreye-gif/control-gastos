@@ -36,6 +36,9 @@ export default function Proyectos() {
     addMovement,
     updateMovement,
     deleteMovement,
+    addPending,
+    updatePending,
+    deletePending,
   } = useProjects()
 
   const [selectedId, setSelectedId] = useState(null)
@@ -71,6 +74,9 @@ export default function Proyectos() {
         onAddMovement={(data) => addMovement(selected, data)}
         onUpdateMovement={updateMovement}
         onDeleteMovement={deleteMovement}
+        onAddPending={(data) => addPending(selected, data)}
+        onUpdatePending={(id, data) => updatePending(selected, id, data)}
+        onDeletePending={(id) => deletePending(selected, id)}
         editor={
           editing && (
             <ProjectEditor
@@ -171,12 +177,20 @@ function ProjectDetail({
   onAddMovement,
   onUpdateMovement,
   onDeleteMovement,
+  onAddPending,
+  onUpdatePending,
+  onDeletePending,
   editor,
 }) {
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(null) // null | {} | { prefill }
   const [editingMov, setEditingMov] = useState(null)
+  const [addingPending, setAddingPending] = useState(false)
+  const [editingPending, setEditingPending] = useState(null)
+  // Pendiente que se está convirtiendo en gasto (se borra al guardarlo).
+  const [buyingPending, setBuyingPending] = useState(null)
   const d = projectDerived(movements)
   const ordered = [...movements].sort(sortByDateDesc)
+  const pending = project.pending ?? []
 
   return (
     <div className="page">
@@ -264,7 +278,21 @@ function ProjectDetail({
         {d.margin > 0 && <> · cobrado al socio: <strong>{formatMoney(d.totalCharged)}</strong></>}
       </p>
 
-      <button className="btn-primary project-add-btn" onClick={() => setAdding(true)}>
+      <PendingSection
+        items={pending}
+        cash={d.cash}
+        onAdd={() => setAddingPending(true)}
+        onEdit={(item) => setEditingPending(item)}
+        onToggleStatus={(item) =>
+          onUpdatePending(item.id, { status: item.status === 'solicitado' ? 'topedir' : 'solicitado' })
+        }
+        onBuy={(item) => {
+          setBuyingPending(item)
+          setAdding({ prefill: { concept: item.concept, amount: item.amount } })
+        }}
+      />
+
+      <button className="btn-primary project-add-btn" onClick={() => setAdding({})}>
         + Registrar movimiento
       </button>
 
@@ -305,11 +333,42 @@ function ProjectDetail({
       {adding && (
         <MovementSheet
           accounts={accounts}
+          prefill={adding.prefill}
           onSave={async (data) => {
             await onAddMovement(data)
-            setAdding(false)
+            if (buyingPending) await onDeletePending(buyingPending.id)
+            setBuyingPending(null)
+            setAdding(null)
           }}
-          onClose={() => setAdding(false)}
+          onClose={() => {
+            setBuyingPending(null)
+            setAdding(null)
+          }}
+        />
+      )}
+
+      {addingPending && (
+        <PendingEditor
+          onSave={async (data) => {
+            await onAddPending(data)
+            setAddingPending(false)
+          }}
+          onClose={() => setAddingPending(false)}
+        />
+      )}
+
+      {editingPending && (
+        <PendingEditor
+          initial={editingPending}
+          onSave={async (data) => {
+            await onUpdatePending(editingPending.id, data)
+            setEditingPending(null)
+          }}
+          onDelete={async () => {
+            await onDeletePending(editingPending.id)
+            setEditingPending(null)
+          }}
+          onClose={() => setEditingPending(null)}
         />
       )}
 
@@ -337,6 +396,135 @@ function ProjectDetail({
       )}
 
       {editor}
+    </div>
+  )
+}
+
+// Lista de cosas que faltan comprar y aún no tienen dinero. Es un plan: no
+// mueve cuentas ni entra a reportes hasta que se convierte en gasto.
+function PendingSection({ items, cash, onAdd, onEdit, onToggleStatus, onBuy }) {
+  const total = items.reduce((a, p) => a + (p.amount || 0), 0)
+  const missing = Math.max(0, total - Math.max(0, cash))
+
+  return (
+    <div className="project-block pending-block">
+      <div className="pending-head">
+        <p className="project-block-title">Pendientes por comprar</p>
+        <button className="link-btn" onClick={onAdd}>+ Agregar</button>
+      </div>
+
+      {items.length === 0 ? (
+        <p className="pending-empty">
+          Anota aquí lo que falta comprar para tenerlo listo cuando le llames al socio.
+        </p>
+      ) : (
+        <>
+          <div className="pending-list">
+            {items.map((p) => (
+              <div key={p.id} className="pending-item">
+                <button className="pending-main" onClick={() => onEdit(p)}>
+                  <span className="pending-concept">{p.concept}</span>
+                  <span className="pending-amount">{formatMoney(p.amount)}</span>
+                </button>
+                <div className="pending-actions">
+                  <button
+                    className={`pending-status ${p.status === 'solicitado' ? 'asked' : ''}`}
+                    onClick={() => onToggleStatus(p)}
+                  >
+                    {p.status === 'solicitado' ? '📞 Solicitado' : '○ Por pedir'}
+                  </button>
+                  <button className="pending-buy" onClick={() => onBuy(p)}>Ya lo compré</button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="project-row">
+            <span>Total pendiente</span>
+            <span>{formatMoney(total)}</span>
+          </div>
+          <div className="project-row">
+            <span>Hay en caja</span>
+            <span>{formatMoney(Math.max(0, cash))}</span>
+          </div>
+          <div className="project-row total">
+            <span>{missing > 0 ? 'Falta pedirle al socio' : 'Alcanza con lo que hay'}</span>
+            <span className={missing > 0 ? 'expense-text' : 'income-text'}>{formatMoney(missing)}</span>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function PendingEditor({ initial, onSave, onDelete, onClose }) {
+  const confirm = useConfirm()
+  const [concept, setConcept] = useState(initial?.concept ?? '')
+  const [value, setValue] = useState(initial ? String(initial.amount) : '')
+  const amount = Number(value)
+  const canSave = concept.trim() !== '' && value !== '' && Number.isFinite(amount) && amount > 0
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>{initial ? 'Editar pendiente' : 'Nuevo pendiente'}</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        <p className="picker-label">¿Qué hay que comprar?</p>
+        <input
+          className="note-input"
+          type="text"
+          placeholder="Ej. Parrilla"
+          value={concept}
+          autoFocus
+          onChange={(e) => setConcept(e.target.value)}
+        />
+
+        <p className="picker-label">Costo estimado</p>
+        <div className="amount-input-wrap">
+          <span className="amount-prefix">$</span>
+          <input
+            className="amount-input-field"
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="1"
+            placeholder="0"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+          />
+        </div>
+        <p className="piggy-hint">
+          Es solo un plan: no mueve tus cuentas hasta que lo marques como comprado.
+        </p>
+
+        <div className="sheet-actions">
+          {initial && (
+            <button
+              className="btn-danger"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Eliminar pendiente',
+                  message: 'Se quita de la lista de cosas por comprar.',
+                })
+                if (ok) onDelete()
+              }}
+            >
+              Eliminar
+            </button>
+          )}
+          <button
+            className="btn-primary"
+            disabled={!canSave}
+            onClick={() => onSave({ concept: concept.trim(), amount })}
+          >
+            Guardar
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -445,16 +633,18 @@ const KIND_OPTIONS = [
   { id: 'refund', label: '📤 Devolución', hint: 'Regresas sobrante al socio' },
 ]
 
-function MovementSheet({ initial, accounts, onSave, onDelete, onClose }) {
+function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const { categories } = useCategories()
   const isEdit = !!initial
-  const [kind, setKind] = useState(initial?.projectKind ?? 'expense')
-  const [value, setValue] = useState(initial ? String(initial.amount) : '')
+  const [kind, setKind] = useState(initial?.projectKind ?? (prefill ? 'expense' : 'expense'))
+  const [value, setValue] = useState(
+    initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
+  )
   const [chargedValue, setChargedValue] = useState(
     initial?.charged != null ? String(initial.charged) : ''
   )
-  const [concept, setConcept] = useState(initial?.concept ?? '')
+  const [concept, setConcept] = useState(initial?.concept ?? prefill?.concept ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
   const [paidFrom, setPaidFrom] = useState(initial?.paidFrom ?? 'fund')
   const [category, setCategory] = useState(initial?.category ?? '')

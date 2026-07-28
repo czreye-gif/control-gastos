@@ -2125,8 +2125,10 @@ input, select {
   text-overflow: ellipsis;
 }
 .pending-amount { font-size: 14px; font-weight: 600; color: var(--text); flex-shrink: 0; }
-.pending-actions { display: flex; gap: 8px; margin-top: 6px; }
+.pending-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .pending-status,
+.pending-link,
+.pending-share,
 .pending-buy {
   font-size: 12px;
   padding: 5px 10px;
@@ -2135,6 +2137,26 @@ input, select {
   background: var(--card-2);
   color: var(--text-muted);
   cursor: pointer;
+}
+.pending-link { color: #0ea5e9; border-color: rgba(14, 165, 233, 0.5); }
+.pending-share { color: var(--text); }
+.pending-share-list {
+  width: 100%;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--green);
+  background: var(--green-light);
+  color: var(--green);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pending-toast {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--green);
+  text-align: center;
 }
 .pending-status.asked {
   border-color: var(--green);

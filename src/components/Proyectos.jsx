@@ -76,6 +76,7 @@ export default function Proyectos() {
     updatePending,
     deletePending,
     addConcept,
+    updateConcept,
     deleteConcept,
   } = useProjects()
 
@@ -139,6 +140,7 @@ export default function Proyectos() {
                 setSelectedId(null)
               }}
               onAddConcept={(name) => addConcept(editingLive, name)}
+              onUpdateConcept={(id, name) => updateConcept(editingLive, id, name)}
               onDeleteConcept={(id) => deleteConcept(editingLive, id)}
               onClose={() => setEditing(null)}
             />
@@ -646,7 +648,7 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
   )
 }
 
-function ProjectEditor({ initial, onSave, onDelete, onAddConcept, onDeleteConcept, onClose }) {
+function ProjectEditor({ initial, onSave, onDelete, onAddConcept, onUpdateConcept, onDeleteConcept, onClose }) {
   const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
   const [mode, setMode] = useState(initial?.mode ?? 'gestoria')
@@ -656,12 +658,24 @@ function ProjectEditor({ initial, onSave, onDelete, onAddConcept, onDeleteConcep
   const [newName, setNewName] = useState('')
   const [status, setStatus] = useState(initial?.status ?? 'active')
   const [conceptName, setConceptName] = useState('')
+  const [editingConceptId, setEditingConceptId] = useState(null)
+  const [editingConceptName, setEditingConceptName] = useState('')
 
   const handleAddConcept = () => {
     if (!conceptName.trim()) return
     onAddConcept(conceptName.trim())
     setConceptName('')
   }
+
+  const startEditConcept = (c) => {
+    setEditingConceptId(c.id)
+    setEditingConceptName(c.name)
+  }
+  const confirmEditConcept = () => {
+    if (editingConceptName.trim()) onUpdateConcept(editingConceptId, editingConceptName)
+    setEditingConceptId(null)
+  }
+  const cancelEditConcept = () => setEditingConceptId(null)
 
   // Al cambiar de modo se reacomodan las participaciones: en gestoría el socio
   // carga todo; en asociación se reparte en partes iguales.
@@ -779,19 +793,55 @@ function ProjectEditor({ initial, onSave, onDelete, onAddConcept, onDeleteConcep
           <>
             <p className="picker-label">Conceptos frecuentes</p>
             <div className="subcategory-list">
-              {(initial.concepts ?? []).map((c) => (
-                <span key={c.id} className="subcategory-tag">
-                  {c.name}
-                  <button
-                    type="button"
-                    className="subcategory-remove"
-                    onClick={() => onDeleteConcept(c.id)}
-                    aria-label={`Eliminar ${c.name}`}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
+              {(initial.concepts ?? []).map((c) =>
+                editingConceptId === c.id ? (
+                  <span key={c.id} className="subcategory-add-inline">
+                    <input
+                      className="subcategory-add-input"
+                      type="text"
+                      autoFocus
+                      value={editingConceptName}
+                      onChange={(e) => setEditingConceptName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') confirmEditConcept()
+                        if (e.key === 'Escape') cancelEditConcept()
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="subcategory-add-ok"
+                      onClick={confirmEditConcept}
+                      disabled={!editingConceptName.trim()}
+                      aria-label="Guardar"
+                    >
+                      ✓
+                    </button>
+                    <button type="button" className="subcategory-add-cancel" onClick={cancelEditConcept} aria-label="Cancelar">
+                      ✕
+                    </button>
+                  </span>
+                ) : (
+                  <span key={c.id} className="subcategory-tag">
+                    {c.name}
+                    <button
+                      type="button"
+                      className="subcategory-edit"
+                      onClick={() => startEditConcept(c)}
+                      aria-label={`Editar ${c.name}`}
+                    >
+                      ✎
+                    </button>
+                    <button
+                      type="button"
+                      className="subcategory-remove"
+                      onClick={() => onDeleteConcept(c.id)}
+                      aria-label={`Eliminar ${c.name}`}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                )
+              )}
               {(initial.concepts ?? []).length === 0 && (
                 <p className="subcategory-empty">Sin conceptos todavía.</p>
               )}

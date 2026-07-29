@@ -983,7 +983,8 @@ input, select {
   font-size: 13px;
 }
 
-.subcategory-remove {
+.subcategory-remove,
+.subcategory-edit {
   background: transparent;
   border: none;
   color: var(--muted);
@@ -996,7 +997,8 @@ input, select {
   justify-content: center;
 }
 
-.subcategory-remove:hover {
+.subcategory-remove:hover,
+.subcategory-edit:hover {
   background: var(--border);
   color: var(--text);
 }

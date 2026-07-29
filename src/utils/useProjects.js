@@ -193,12 +193,20 @@ function useConcepts(user) {
     }).then(() => concept)
   }
 
+  const updateConcept = (project, conceptId, name) => {
+    const clean = name.trim()
+    if (!clean) return
+    return updateDoc(doc(db, 'users', user.uid, 'projects', project.id), {
+      concepts: (project.concepts ?? []).map((c) => (c.id === conceptId ? { ...c, name: clean } : c)),
+    })
+  }
+
   const deleteConcept = (project, conceptId) =>
     updateDoc(doc(db, 'users', user.uid, 'projects', project.id), {
       concepts: (project.concepts ?? []).filter((c) => c.id !== conceptId),
     })
 
-  return { addConcept, deleteConcept }
+  return { addConcept, updateConcept, deleteConcept }
 }
 
 // --- Migración del modelo viejo (fondo + paidFrom) al de participantes ---

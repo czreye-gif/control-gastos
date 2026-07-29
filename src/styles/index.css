@@ -130,19 +130,15 @@ input, select {
 .home-topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 14px;
 }
-
-.home-topbar h2 {
-  margin: 0;
-  font-size: 20px;
-}
-
 
 .home-topbar-actions {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .icon-btn {

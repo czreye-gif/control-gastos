@@ -113,7 +113,6 @@ export default function Home() {
   return (
     <div className="page">
       <div className="home-topbar">
-        <h2>Mis finanzas</h2>
         <div className="home-topbar-actions">
           <button className="icon-btn" onClick={() => navigate('/ahorros')} aria-label="Ahorros">
             🐷

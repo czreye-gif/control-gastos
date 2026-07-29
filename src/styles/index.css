@@ -2120,6 +2120,25 @@ input, select {
 .trip-actions button { flex: 1; min-width: 110px; }
 .trip-magnate { text-align: center; font-size: 13px; color: var(--text-muted); margin: 4px 0 12px; }
 
+/* Chips de concepto (Proyectos) */
+.concept-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.concept-label-row .picker-label { margin-bottom: 0; }
+.concept-manage-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.concept-manage-item:last-child { border-bottom: none; }
+.concept-manage-label { flex: 1; font-size: 14px; color: var(--text); min-width: 0; }
+.concept-manage-actions { display: flex; gap: 12px; flex-shrink: 0; }
+
 /* Pendientes por comprar */
 .pending-block {
   margin-bottom: 14px;

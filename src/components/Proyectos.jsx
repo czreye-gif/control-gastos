@@ -387,6 +387,7 @@ function ProjectDetail({
           kind={adding.kind}
           prefill={adding.prefill}
           project={project}
+          movements={movements}
           accounts={accounts}
           onSave={async (data) => {
             await onAdd(data)
@@ -406,6 +407,7 @@ function ProjectDetail({
           initial={editingMov}
           kind={editingMov.kind}
           project={project}
+          movements={movements}
           accounts={accounts}
           onSave={async (data) => {
             const touchesMe = data.paidBy === ME_ID || data.paidTo === ME_ID
@@ -807,12 +809,13 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
   )
 }
 
-function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDelete, onClose }) {
+function MovementSheet({ initial, kind, prefill, project, movements, accounts, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const { categories } = useCategories()
   const people = project.participants ?? []
   const isSettlement = kind === 'settlement'
   const isFee = kind === 'fee'
+  const conceptInputRef = useRef(null)
 
   const [value, setValue] = useState(
     initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
@@ -820,6 +823,30 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
   const [chargedValue, setChargedValue] = useState(initial?.charged != null ? String(initial.charged) : '')
   const [concept, setConcept] = useState(initial?.concept ?? prefill?.concept ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
+
+  // Chips de conceptos ya usados en este proyecto (más usados primero, luego
+  // alfabético) más los que están anotados en Pendientes por comprar, para no
+  // tener que volver a escribir "Caja de luz" cada vez que se compra una.
+  const conceptChips = useMemo(() => {
+    if (kind !== 'expense') return []
+    const freq = new Map() // clave en minúsculas -> { label, count }
+    for (const m of movements ?? []) {
+      if (m.kind !== 'expense') continue
+      const c = (m.concept || '').trim()
+      if (!c) continue
+      const key = c.toLowerCase()
+      const cur = freq.get(key)
+      if (cur) cur.count++
+      else freq.set(key, { label: c, count: 1 })
+    }
+    for (const p of project.pending ?? []) {
+      const c = (p.concept || '').trim()
+      if (!c) continue
+      const key = c.toLowerCase()
+      if (!freq.has(key)) freq.set(key, { label: c, count: 0 })
+    }
+    return [...freq.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+  }, [movements, project.pending, kind])
   // El honorario siempre lo aportas tú; los demás movimientos pueden ser de
   // cualquier participante.
   const [paidBy, setPaidBy] = useState(initial?.paidBy ?? (isFee ? ME_ID : ME_ID))
@@ -982,7 +1009,34 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
         )}
 
         <p className="picker-label">Concepto</p>
+
+        {kind === 'expense' && (
+          <div className="subcategory-picker">
+            {conceptChips.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                className={`subcategory-chip ${concept === c.label ? 'selected' : ''}`}
+                onClick={() => setConcept(c.label)}
+              >
+                {c.label}{c.count > 0 && ` · ${c.count}`}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="subcategory-chip add"
+              onClick={() => {
+                setConcept('')
+                conceptInputRef.current?.focus()
+              }}
+            >
+              + Nuevo
+            </button>
+          </div>
+        )}
+
         <input
+          ref={conceptInputRef}
           className="note-input"
           type="text"
           placeholder={kind === 'expense' ? 'Ej. Hojalatería, refacciones…' : 'Descripción (opcional)'}

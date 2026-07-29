@@ -122,6 +122,7 @@ export default function Proyectos() {
         onAddPending={(d) => addPending(selected, d)}
         onUpdatePending={(id, d) => updatePending(selected, id, d)}
         onDeletePending={(id) => deletePending(selected, id)}
+        onUpdateProject={(d) => updateProject(selected.id, d)}
         editor={
           editing && (
             <ProjectEditor
@@ -244,6 +245,7 @@ function ProjectDetail({
   onAddPending,
   onUpdatePending,
   onDeletePending,
+  onUpdateProject,
   editor,
 }) {
   const [adding, setAdding] = useState(null)
@@ -256,6 +258,29 @@ function ProjectDetail({
   const isGestoria = (project.mode ?? 'gestoria') === 'gestoria'
   const ordered = [...movements].sort(sortByDateDesc)
   const pending = project.pending ?? []
+
+  // Renombra un concepto en todos los gastos y pendientes que lo usan (fusiona
+  // duplicados como "Caja de luz" / "cajas de luz" en una sola grafía).
+  const renameConcept = async (oldLabel, newLabel) => {
+    const key = oldLabel.trim().toLowerCase()
+    const clean = newLabel.trim()
+    if (!clean || clean.toLowerCase() === key) return
+    const matchingMovs = movements.filter(
+      (m) => m.kind === 'expense' && (m.concept || '').trim().toLowerCase() === key
+    )
+    await Promise.all(matchingMovs.map((m) => onUpdate(m.id, { concept: clean })))
+    const matchingPending = pending.filter((p) => (p.concept || '').trim().toLowerCase() === key)
+    await Promise.all(matchingPending.map((p) => onUpdatePending(p.id, { concept: clean })))
+  }
+
+  // "Borrar" un chip de concepto no borra el historial: solo deja de
+  // sugerirse en la lista rápida (se guarda en `hiddenConcepts` del proyecto).
+  const hideConcept = async (label) => {
+    const key = label.trim().toLowerCase()
+    const current = project.hiddenConcepts ?? []
+    if (current.includes(key)) return
+    await onUpdateProject({ hiddenConcepts: [...current, key] })
+  }
 
   return (
     <div className="page">
@@ -389,6 +414,8 @@ function ProjectDetail({
           project={project}
           movements={movements}
           accounts={accounts}
+          onRenameConcept={renameConcept}
+          onHideConcept={hideConcept}
           onSave={async (data) => {
             await onAdd(data)
             if (buyingPending) await onDeletePending(buyingPending.id)
@@ -409,6 +436,8 @@ function ProjectDetail({
           project={project}
           movements={movements}
           accounts={accounts}
+          onRenameConcept={renameConcept}
+          onHideConcept={hideConcept}
           onSave={async (data) => {
             const touchesMe = data.paidBy === ME_ID || data.paidTo === ME_ID
             await onUpdate(editingMov.id, {
@@ -809,13 +838,26 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
   )
 }
 
-function MovementSheet({ initial, kind, prefill, project, movements, accounts, onSave, onDelete, onClose }) {
+function MovementSheet({
+  initial,
+  kind,
+  prefill,
+  project,
+  movements,
+  accounts,
+  onSave,
+  onDelete,
+  onClose,
+  onRenameConcept,
+  onHideConcept,
+}) {
   const confirm = useConfirm()
   const { categories } = useCategories()
   const people = project.participants ?? []
   const isSettlement = kind === 'settlement'
   const isFee = kind === 'fee'
   const conceptInputRef = useRef(null)
+  const [managingConcepts, setManagingConcepts] = useState(false)
 
   const [value, setValue] = useState(
     initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
@@ -827,8 +869,7 @@ function MovementSheet({ initial, kind, prefill, project, movements, accounts, o
   // Chips de conceptos ya usados en este proyecto (más usados primero, luego
   // alfabético) más los que están anotados en Pendientes por comprar, para no
   // tener que volver a escribir "Caja de luz" cada vez que se compra una.
-  const conceptChips = useMemo(() => {
-    if (kind !== 'expense') return []
+  const allConceptChips = useMemo(() => {
     const freq = new Map() // clave en minúsculas -> { label, count }
     for (const m of movements ?? []) {
       if (m.kind !== 'expense') continue
@@ -846,7 +887,13 @@ function MovementSheet({ initial, kind, prefill, project, movements, accounts, o
       if (!freq.has(key)) freq.set(key, { label: c, count: 0 })
     }
     return [...freq.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
-  }, [movements, project.pending, kind])
+  }, [movements, project.pending])
+
+  const hiddenConcepts = project.hiddenConcepts ?? []
+  const conceptChips = useMemo(() => {
+    if (kind !== 'expense') return []
+    return allConceptChips.filter((c) => !hiddenConcepts.includes(c.label.toLowerCase()))
+  }, [allConceptChips, hiddenConcepts, kind])
   // El honorario siempre lo aportas tú; los demás movimientos pueden ser de
   // cualquier participante.
   const [paidBy, setPaidBy] = useState(initial?.paidBy ?? (isFee ? ME_ID : ME_ID))
@@ -1008,7 +1055,14 @@ function MovementSheet({ initial, kind, prefill, project, movements, accounts, o
           </>
         )}
 
-        <p className="picker-label">Concepto</p>
+        <div className="concept-label-row">
+          <p className="picker-label">Concepto</p>
+          {kind === 'expense' && allConceptChips.length > 0 && (
+            <button type="button" className="link-btn" onClick={() => setManagingConcepts(true)}>
+              ✎ Editar chips
+            </button>
+          )}
+        </div>
 
         {kind === 'expense' && (
           <div className="subcategory-picker">
@@ -1088,6 +1142,99 @@ function MovementSheet({ initial, kind, prefill, project, movements, accounts, o
             Guardar
           </button>
         </div>
+      </div>
+
+      {managingConcepts && (
+        <ConceptManager
+          items={allConceptChips}
+          hidden={hiddenConcepts}
+          onRename={async (oldLabel, newLabel) => {
+            await onRenameConcept(oldLabel, newLabel)
+            if (concept.trim().toLowerCase() === oldLabel.trim().toLowerCase()) setConcept(newLabel.trim())
+          }}
+          onHide={onHideConcept}
+          onClose={() => setManagingConcepts(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Sheet para renombrar (fusionar duplicados) o quitar chips de concepto de la
+// lista rápida. No borra el historial de gastos, solo la sugerencia.
+function ConceptManager({ items, hidden, onRename, onHide, onClose }) {
+  const [editingLabel, setEditingLabel] = useState(null)
+  const [draft, setDraft] = useState('')
+
+  const visible = items.filter((c) => !hidden.includes(c.label.toLowerCase()))
+
+  const startEdit = (label) => {
+    setEditingLabel(label)
+    setDraft(label)
+  }
+
+  const confirmEdit = async () => {
+    const clean = draft.trim()
+    if (clean && clean !== editingLabel) await onRename(editingLabel, clean)
+    setEditingLabel(null)
+  }
+
+  return (
+    <div className="sheet-backdrop" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-handle" />
+        <div className="sheet-head">
+          <h2>Editar chips de concepto</h2>
+          <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
+        </div>
+
+        {visible.length === 0 ? (
+          <p className="pending-empty">No hay chips para editar.</p>
+        ) : (
+          <div className="kardex-list">
+            {visible.map((c) => (
+              <div key={c.label} className="concept-manage-item">
+                {editingLabel === c.label ? (
+                  <span className="subcategory-add-inline" style={{ flex: 1 }}>
+                    <input
+                      className="subcategory-add-input"
+                      type="text"
+                      autoFocus
+                      value={draft}
+                      onChange={(e) => setDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') confirmEdit()
+                        if (e.key === 'Escape') setEditingLabel(null)
+                      }}
+                    />
+                    <button type="button" className="subcategory-add-ok" onClick={confirmEdit} disabled={!draft.trim()}>
+                      ✓
+                    </button>
+                    <button type="button" className="subcategory-add-cancel" onClick={() => setEditingLabel(null)}>
+                      ✕
+                    </button>
+                  </span>
+                ) : (
+                  <>
+                    <span className="concept-manage-label">
+                      {c.label}
+                      {c.count > 0 && <span className="muted-text"> · usado {c.count}×</span>}
+                    </span>
+                    <div className="concept-manage-actions">
+                      <button className="link-btn" onClick={() => startEdit(c.label)}>Editar</button>
+                      <button className="link-btn danger" onClick={() => onHide(c.label)}>Borrar</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="piggy-hint">
+          Editar cambia el nombre en todos los gastos y pendientes que lo usan. Borrar solo quita el chip de la
+          lista rápida; los gastos ya registrados no se tocan.
+        </p>
       </div>
     </div>
   )

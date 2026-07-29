@@ -46,6 +46,16 @@ async function shareText(text, title) {
 
 const nameOf = (owner, id) => (owner.participants ?? []).find((p) => p.id === id)?.name ?? '—'
 
+// Sin acentos y en minúsculas, para buscar chips de concepto sin importar
+// mayúsculas ni tildes.
+function normalizeText(s) {
+  return (s ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .trim()
+    .toLowerCase()
+}
+
 function useProjectMovements(expenses) {
   return useMemo(() => {
     const map = new Map()
@@ -858,6 +868,7 @@ function MovementSheet({
   const isFee = kind === 'fee'
   const conceptInputRef = useRef(null)
   const [managingConcepts, setManagingConcepts] = useState(false)
+  const [conceptSearch, setConceptSearch] = useState('')
 
   const [value, setValue] = useState(
     initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
@@ -894,6 +905,14 @@ function MovementSheet({
     if (kind !== 'expense') return []
     return allConceptChips.filter((c) => !hiddenConcepts.includes(c.label.toLowerCase()))
   }, [allConceptChips, hiddenConcepts, kind])
+
+  // Filtro de búsqueda sobre los chips: útil cuando el proyecto acumula
+  // muchos conceptos. Ignora mayúsculas y acentos.
+  const filteredConceptChips = useMemo(() => {
+    const term = normalizeText(conceptSearch)
+    if (!term) return conceptChips
+    return conceptChips.filter((c) => normalizeText(c.label).includes(term))
+  }, [conceptChips, conceptSearch])
   // El honorario siempre lo aportas tú; los demás movimientos pueden ser de
   // cualquier participante.
   const [paidBy, setPaidBy] = useState(initial?.paidBy ?? (isFee ? ME_ID : ME_ID))
@@ -1064,9 +1083,22 @@ function MovementSheet({
           )}
         </div>
 
+        {kind === 'expense' && conceptChips.length > 0 && (
+          <div className="concept-search-wrap">
+            <span className="concept-search-icon" aria-hidden="true">🔍</span>
+            <input
+              className="concept-search-input"
+              type="text"
+              placeholder="Buscar concepto..."
+              value={conceptSearch}
+              onChange={(e) => setConceptSearch(e.target.value)}
+            />
+          </div>
+        )}
+
         {kind === 'expense' && (
           <div className="subcategory-picker">
-            {conceptChips.map((c) => (
+            {filteredConceptChips.map((c) => (
               <button
                 key={c.label}
                 type="button"
@@ -1076,6 +1108,9 @@ function MovementSheet({
                 {c.label}{c.count > 0 && ` · ${c.count}`}
               </button>
             ))}
+            {conceptChips.length > 0 && filteredConceptChips.length === 0 && (
+              <span className="concept-no-match">Sin coincidencias — usa + Nuevo o escribe abajo</span>
+            )}
             <button
               type="button"
               className="subcategory-chip add"

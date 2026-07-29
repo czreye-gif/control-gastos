@@ -19,6 +19,11 @@
 html, body {
   margin: 0;
   height: 100%;
+  /* Si algún elemento se desborda por accidente, el navegador móvil amplía el
+     viewport de layout y desplaza los `position: fixed` (como el FAB +) fuera
+     de la pantalla visible. Bloquear el overflow aquí evita ese corrimiento;
+     las zonas con scroll horizontal propio (overflow-x: auto) no se afectan. */
+  overflow-x: hidden;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -27,6 +32,7 @@ html, body {
 
 #root {
   height: 100%;
+  overflow-x: hidden;
 }
 
 button {

@@ -36,7 +36,7 @@ import {
 } from '../utils/dates'
 
 export default function Home() {
-  const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses()
+  const { myExpenses: expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses()
   const navigate = useNavigate()
   const [showAdd, setShowAdd] = useState(false)
   const [editing, setEditing] = useState(null)
@@ -132,6 +132,9 @@ export default function Home() {
           </button>
           <button className="icon-btn" onClick={() => navigate('/proyectos')} aria-label="Proyectos">
             🏗️
+          </button>
+          <button className="icon-btn" onClick={() => navigate('/vacaciones')} aria-label="Vacaciones">
+            🏖️
           </button>
           <button className="icon-btn" onClick={() => navigate('/categorias')} aria-label="Editar categorías">
             ⚙️

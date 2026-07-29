@@ -46,6 +46,9 @@ export function useExpenses() {
         })
       setExpenses(docs)
       setLoading(false)
+      // `offBook` marca movimientos de proyectos/viajes que pagó otra persona:
+      // viven en el libro de su proyecto pero nunca fueron tu dinero, así que
+      // no deben aparecer en tus listas ni afectar tus saldos.
     })
     return unsubscribe
   }, [user])
@@ -89,5 +92,9 @@ export function useExpenses() {
     if (changed > 0) await batch.commit()
   }
 
-  return { expenses, loading, addExpense, updateExpense, deleteExpense, reorderDay }
+  // `expenses` incluye todo (lo necesitan Proyectos y Vacaciones para su libro
+  // diario); `myExpenses` es solo tu dinero, para tus listas y saldos.
+  const myExpenses = expenses.filter((e) => !e.offBook)
+
+  return { expenses, myExpenses, loading, addExpense, updateExpense, deleteExpense, reorderDay }
 }

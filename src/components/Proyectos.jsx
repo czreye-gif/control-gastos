@@ -1,17 +1,19 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useExpenses } from '../utils/useExpenses'
 import { useAccounts } from '../utils/useAccounts'
 import { useCategories } from '../contexts/CategoriesContext'
-import { useProjects, projectDerived, KIND_LABEL } from '../utils/useProjects'
+import { useProjects, projectSummary, migrateProject, PROJECT_MODES, ME_ID } from '../utils/useProjects'
+import { equalSharesFor } from '../utils/useSplit'
+import { useAuth } from '../contexts/AuthContext'
 import { useConfirm } from '../contexts/ConfirmContext'
 import { formatDayLabel, todayISO } from '../utils/dates'
 
 const sortByDateDesc = (a, b) => (a.date < b.date ? 1 : -1)
 
-// Acepta "mercadolibre.com/x" o "https://…". Descarta esquemas que no sean
-// http(s) (javascript:, data:…) para no abrir enlaces peligrosos.
+// Acepta "tienda.com/x" o "https://…". Descarta esquemas que no sean http(s)
+// (javascript:, data:…) para no abrir enlaces peligrosos.
 function normalizeUrl(raw) {
   const s = (raw ?? '').trim()
   if (!s) return ''
@@ -25,15 +27,13 @@ function openLink(url) {
   if (safe) window.open(safe, '_blank', 'noopener,noreferrer')
 }
 
-// Comparte con la hoja nativa del sistema (WhatsApp, correo…). Si el navegador
-// no la soporta, copia el texto al portapapeles.
 async function shareText(text, title) {
   if (navigator.share) {
     try {
       await navigator.share({ title, text })
       return 'shared'
     } catch {
-      return 'cancelled' // el usuario cerró la hoja
+      return 'cancelled'
     }
   }
   try {
@@ -44,7 +44,8 @@ async function shareText(text, title) {
   }
 }
 
-// Agrupa los movimientos por projectId.
+const nameOf = (owner, id) => (owner.participants ?? []).find((p) => p.id === id)?.name ?? '—'
+
 function useProjectMovements(expenses) {
   return useMemo(() => {
     const map = new Map()
@@ -59,6 +60,7 @@ function useProjectMovements(expenses) {
 
 export default function Proyectos() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const { expenses, loading: loadingExp } = useExpenses()
   const { accounts } = useAccounts()
   const {
@@ -76,11 +78,27 @@ export default function Proyectos() {
   } = useProjects()
 
   const [selectedId, setSelectedId] = useState(null)
-  const [editing, setEditing] = useState(null) // null | 'new' | proyecto
+  const [editing, setEditing] = useState(null)
 
   const movementsByProject = useProjectMovements(expenses)
   const payAccounts = useMemo(() => accounts.filter((a) => !a.piggy), [accounts])
   const selected = projects.find((p) => p.id === selectedId) ?? null
+
+  // Migra en silencio los proyectos creados con el modelo anterior (fondo). El
+  // candado evita que se dispare dos veces mientras la escritura va en camino.
+  const migrating = useRef(new Set())
+  useEffect(() => {
+    if (!user) return
+    projects
+      .filter((p) => !p.participants && !migrating.current.has(p.id))
+      .forEach((p) => {
+        migrating.current.add(p.id)
+        migrateProject(user.uid, p).catch((e) => {
+          console.error('No se pudo migrar el proyecto:', e)
+          migrating.current.delete(p.id)
+        })
+      })
+  }, [projects, user])
 
   const saveProject = async (data) => {
     if (editing && editing !== 'new') await updateProject(editing.id, data)
@@ -88,16 +106,9 @@ export default function Proyectos() {
     setEditing(null)
   }
 
-  const removeProject = async (id) => {
-    await deleteProject(id)
-    setEditing(null)
-    setSelectedId(null)
-  }
-
   if (loading || loadingExp) return <p className="loading-text">Cargando...</p>
 
-  // --- Detalle de un proyecto (libro diario + rendición de cuentas) ---
-  if (selected) {
+  if (selected && selected.participants) {
     return (
       <ProjectDetail
         project={selected}
@@ -105,18 +116,22 @@ export default function Proyectos() {
         accounts={payAccounts}
         onBack={() => setSelectedId(null)}
         onEdit={() => setEditing(selected)}
-        onAddMovement={(data) => addMovement(selected, data)}
-        onUpdateMovement={updateMovement}
-        onDeleteMovement={deleteMovement}
-        onAddPending={(data) => addPending(selected, data)}
-        onUpdatePending={(id, data) => updatePending(selected, id, data)}
+        onAdd={(m) => addMovement(selected, m, (id) => nameOf(selected, id))}
+        onUpdate={updateMovement}
+        onDeleteMov={deleteMovement}
+        onAddPending={(d) => addPending(selected, d)}
+        onUpdatePending={(id, d) => updatePending(selected, id, d)}
         onDeletePending={(id) => deletePending(selected, id)}
         editor={
           editing && (
             <ProjectEditor
               initial={editing === 'new' ? null : editing}
               onSave={saveProject}
-              onDelete={removeProject}
+              onDelete={async (id) => {
+                await deleteProject(id)
+                setEditing(null)
+                setSelectedId(null)
+              }}
               onClose={() => setEditing(null)}
             />
           )
@@ -130,31 +145,43 @@ export default function Proyectos() {
 
   const renderList = (items) =>
     items.map((p) => {
-      const d = projectDerived(movementsByProject.get(p.id) ?? [])
+      if (!p.participants) {
+        return (
+          <div key={p.id} className="project-card">
+            <span className="project-card-name">{p.name}</span>
+            <span className="project-card-partner">Actualizando…</span>
+          </div>
+        )
+      }
+      const s = projectSummary(p, movementsByProject.get(p.id) ?? [])
+      const isGestoria = (p.mode ?? 'gestoria') === 'gestoria'
       return (
         <button key={p.id} className="project-card" onClick={() => setSelectedId(p.id)}>
           <span className="project-card-head">
             <span className="project-card-name">{p.name}</span>
             {p.status === 'closed' && <span className="project-tag">Cerrado</span>}
           </span>
-          {p.partner && <span className="project-card-partner">👤 {p.partner}</span>}
+          <span className="project-card-partner">
+            {isGestoria ? '🛠️ Gestoría' : '🤝 Asociación'} ·{' '}
+            {(p.participants ?? []).filter((x) => x.id !== ME_ID).map((x) => x.name).join(', ') || 'Sin socios'}
+          </span>
           <span className="project-card-figures">
             <span className="project-fig">
-              <span className="project-fig-label">Caja</span>
-              <span className={`project-fig-value ${d.cash < 0 ? 'expense-text' : ''}`}>
-                {formatMoney(d.cash)}
-              </span>
+              <span className="project-fig-label">Costo</span>
+              <span className="project-fig-value">{formatMoney(s.totalCost)}</span>
             </span>
             <span className="project-fig">
-              <span className="project-fig-label">Me deben</span>
-              <span className={`project-fig-value ${d.owedToMe > 0 ? 'income-text' : ''}`}>
-                {formatMoney(d.owedToMe)}
+              <span className="project-fig-label">{s.myBalance >= 0 ? 'Me deben' : 'Debo'}</span>
+              <span className={`project-fig-value ${s.myBalance >= 0 ? 'income-text' : 'expense-text'}`}>
+                {formatMoney(Math.abs(s.myBalance))}
               </span>
             </span>
-            <span className="project-fig">
-              <span className="project-fig-label">Mi utilidad</span>
-              <span className="project-fig-value income-text">{formatMoney(d.profit)}</span>
-            </span>
+            {isGestoria && (
+              <span className="project-fig">
+                <span className="project-fig-label">Utilidad</span>
+                <span className="project-fig-value income-text">{formatMoney(s.profit)}</span>
+              </span>
+            )}
           </span>
         </button>
       )
@@ -168,8 +195,8 @@ export default function Proyectos() {
       </header>
 
       <p className="page-subtitle">
-        Libro diario de los proyectos que operas con capital de tus socios. Registra el día a día y ten lista la
-        rendición de cuentas.
+        Lleva el día a día de tus proyectos y ten lista la rendición de cuentas. Cuando el dinero sale de tus
+        cuentas se registra en tus movimientos; cuando paga un socio, no.
       </p>
 
       {projects.length === 0 ? (
@@ -194,7 +221,10 @@ export default function Proyectos() {
         <ProjectEditor
           initial={editing === 'new' ? null : editing}
           onSave={saveProject}
-          onDelete={removeProject}
+          onDelete={async (id) => {
+            await deleteProject(id)
+            setEditing(null)
+          }}
           onClose={() => setEditing(null)}
         />
       )}
@@ -208,21 +238,22 @@ function ProjectDetail({
   accounts,
   onBack,
   onEdit,
-  onAddMovement,
-  onUpdateMovement,
-  onDeleteMovement,
+  onAdd,
+  onUpdate,
+  onDeleteMov,
   onAddPending,
   onUpdatePending,
   onDeletePending,
   editor,
 }) {
-  const [adding, setAdding] = useState(null) // null | {} | { prefill }
+  const [adding, setAdding] = useState(null)
   const [editingMov, setEditingMov] = useState(null)
   const [addingPending, setAddingPending] = useState(false)
   const [editingPending, setEditingPending] = useState(null)
-  // Pendiente que se está convirtiendo en gasto (se borra al guardarlo).
   const [buyingPending, setBuyingPending] = useState(null)
-  const d = projectDerived(movements)
+
+  const s = projectSummary(project, movements)
+  const isGestoria = (project.mode ?? 'gestoria') === 'gestoria'
   const ordered = [...movements].sort(sortByDateDesc)
   const pending = project.pending ?? []
 
@@ -234,87 +265,65 @@ function ProjectDetail({
         <button className="icon-btn" onClick={onEdit} aria-label="Editar proyecto">⚙️</button>
       </header>
 
-      {project.partner && <p className="page-subtitle">👤 Socio: {project.partner}</p>}
+      <p className="page-subtitle">
+        {isGestoria ? PROJECT_MODES.gestoria.label : PROJECT_MODES.asociacion.label}
+      </p>
 
-      {/* Rendición de cuentas */}
-      <div className="project-summary">
-        <div className="project-block">
-          <p className="project-block-title">Caja del fondo</p>
-          <div className="project-row">
-            <span>Recibido del socio</span>
-            <span>{formatMoney(d.received)}</span>
+      <div className="total-card">
+        <p>Costo del proyecto</p>
+        <h2>{formatMoney(s.totalCost)}</h2>
+      </div>
+
+      {/* Rendición de cuentas: quién puso qué y quién debe a quién */}
+      <div className="project-block">
+        <p className="project-block-title">Rendición de cuentas</p>
+        {s.balances.map((b) => (
+          <div key={b.id} className="project-row">
+            <span>
+              {b.id === ME_ID ? '👤 Yo' : b.name}
+              <span className="participant-share"> · {b.share}%</span>
+            </span>
+            <span>
+              {formatMoney(b.paid)}
+              <span className="muted-text"> de {formatMoney(b.owed)}</span>
+            </span>
           </div>
-          <div className="project-row">
-            <span>Gastado del fondo</span>
-            <span className="expense-text">−{formatMoney(d.chargedFund)}</span>
-          </div>
-          {d.feesFromFund > 0 && (
-            <div className="project-row">
-              <span>Mi honorario (del fondo)</span>
-              <span className="expense-text">−{formatMoney(d.feesFromFund)}</span>
+        ))}
+        {s.settlements.length > 0 ? (
+          s.settlements.map((d, i) => (
+            <div key={i} className="project-row total">
+              <span>{d.from} ➔ {d.to}</span>
+              <span className="expense-text">{formatMoney(d.amount)}</span>
             </div>
-          )}
-          {d.reimbursedFromFund > 0 && (
-            <div className="project-row">
-              <span>Me reembolsé del fondo</span>
-              <span className="expense-text">−{formatMoney(d.reimbursedFromFund)}</span>
-            </div>
-          )}
-          {d.refunded > 0 && (
-            <div className="project-row">
-              <span>Devuelto al socio</span>
-              <span className="expense-text">−{formatMoney(d.refunded)}</span>
-            </div>
-          )}
+          ))
+        ) : (
           <div className="project-row total">
-            <span>Queda en caja</span>
-            <span className={d.cash < 0 ? 'expense-text' : 'income-text'}>{formatMoney(d.cash)}</span>
+            <span>Cuentas al día ✓</span>
+            <span className="income-text">{formatMoney(0)}</span>
           </div>
-        </div>
+        )}
+      </div>
 
-        <div className="project-block">
-          <p className="project-block-title">Me deben reembolsar</p>
-          <div className="project-row">
-            <span>Adelanté de mi bolsa</span>
-            <span>{formatMoney(d.chargedAdvanced)}</span>
-          </div>
-          {d.reimbursed > 0 && (
-            <div className="project-row">
-              <span>Ya me reembolsaron</span>
-              <span className="expense-text">−{formatMoney(d.reimbursed)}</span>
-            </div>
-          )}
-          <div className="project-row total">
-            <span>Me deben</span>
-            <span className={d.owedToMe > 0 ? 'income-text' : ''}>{formatMoney(d.owedToMe)}</span>
-          </div>
-        </div>
-
+      {isGestoria && (
         <div className="project-block">
           <p className="project-block-title">Mi utilidad</p>
           <div className="project-row">
             <span>Honorarios</span>
-            <span>{formatMoney(d.fees)}</span>
+            <span>{formatMoney(s.fees)}</span>
           </div>
           <div className="project-row">
             <span>Margen en compras</span>
-            <span>{formatMoney(d.margin)}</span>
+            <span>{formatMoney(s.margin)}</span>
           </div>
           <div className="project-row total">
             <span>Total ganado</span>
-            <span className="income-text">{formatMoney(d.profit)}</span>
+            <span className="income-text">{formatMoney(s.profit)}</span>
           </div>
         </div>
-      </div>
-
-      <p className="project-cost-line">
-        Costo total del proyecto: <strong>{formatMoney(d.totalCost)}</strong>
-        {d.margin > 0 && <> · cobrado al socio: <strong>{formatMoney(d.totalCharged)}</strong></>}
-      </p>
+      )}
 
       <PendingSection
         items={pending}
-        cash={d.cash}
         projectName={project.name}
         onAdd={() => setAddingPending(true)}
         onEdit={(item) => setEditingPending(item)}
@@ -323,41 +332,49 @@ function ProjectDetail({
         }
         onBuy={(item) => {
           setBuyingPending(item)
-          setAdding({ prefill: { concept: item.concept, amount: item.amount } })
+          setAdding({ kind: 'expense', prefill: { concept: item.concept, amount: item.amount } })
         }}
       />
 
-      <button className="btn-primary project-add-btn" onClick={() => setAdding({})}>
-        + Registrar movimiento
-      </button>
+      <div className="trip-actions">
+        <button className="btn-primary" onClick={() => setAdding({ kind: 'expense' })}>+ Gasto</button>
+        {isGestoria && (
+          <button className="btn-ghost" onClick={() => setAdding({ kind: 'fee' })}>⭐ Honorario</button>
+        )}
+        <button className="btn-ghost" onClick={() => setAdding({ kind: 'settlement' })}>💸 Pago directo</button>
+      </div>
 
       <h3 className="section-title">Libro diario</h3>
       {ordered.length === 0 ? (
         <p className="empty-state" style={{ fontSize: 13 }}>
-          Aún no hay movimientos. Registra la entrega de capital o el primer gasto.
+          Aún no hay movimientos. Registra el primer gasto o la entrega de dinero del socio.
         </p>
       ) : (
         <div className="ledger-list">
           {ordered.map((m) => {
-            const inflow = m.type === 'income'
+            const isSettlement = m.kind === 'settlement'
+            const isFee = m.kind === 'fee'
             const charged = m.charged != null && m.charged !== m.amount
             return (
               <button key={m.id} className="ledger-item" onClick={() => setEditingMov(m)}>
                 <span className="ledger-main">
-                  <span className="ledger-concept">{m.concept || KIND_LABEL[m.projectKind] || 'Movimiento'}</span>
+                  <span className="ledger-concept">
+                    {isSettlement
+                      ? `${nameOf(project, m.paidBy)} ➔ ${nameOf(project, m.paidTo)}`
+                      : m.concept || (isFee ? 'Honorario' : 'Gasto')}
+                  </span>
                   <span className="ledger-meta">
-                    {KIND_LABEL[m.projectKind]}
-                    {m.projectKind === 'expense' && (m.paidFrom === 'own' ? ' · lo adelanté yo' : ' · del fondo')}
+                    {isSettlement
+                      ? 'Pago directo'
+                      : `${isFee ? 'Honorario' : 'Gasto'} · pagó ${nameOf(project, m.paidBy)}`}
                     {' · '}{formatDayLabel(m.date)}
                   </span>
                 </span>
                 <span className="ledger-amounts">
-                  <span className={`ledger-amount ${inflow ? 'income-text' : 'expense-text'}`}>
-                    {inflow ? '+' : '−'}{formatMoney(m.amount)}
+                  <span className={`ledger-amount ${isSettlement || isFee ? 'income-text' : 'expense-text'}`}>
+                    {formatMoney(m.amount)}
                   </span>
-                  {charged && (
-                    <span className="ledger-charged">cobré {formatMoney(m.charged)}</span>
-                  )}
+                  {charged && <span className="ledger-charged">cobré {formatMoney(m.charged)}</span>}
                 </span>
               </button>
             )
@@ -367,10 +384,12 @@ function ProjectDetail({
 
       {adding && (
         <MovementSheet
-          accounts={accounts}
+          kind={adding.kind}
           prefill={adding.prefill}
+          project={project}
+          accounts={accounts}
           onSave={async (data) => {
-            await onAddMovement(data)
+            await onAdd(data)
             if (buyingPending) await onDeletePending(buyingPending.id)
             setBuyingPending(null)
             setAdding(null)
@@ -382,10 +401,38 @@ function ProjectDetail({
         />
       )}
 
+      {editingMov && (
+        <MovementSheet
+          initial={editingMov}
+          kind={editingMov.kind}
+          project={project}
+          accounts={accounts}
+          onSave={async (data) => {
+            const touchesMe = data.paidBy === ME_ID || data.paidTo === ME_ID
+            await onUpdate(editingMov.id, {
+              amount: data.amount,
+              charged: data.charged ?? null,
+              concept: data.concept,
+              date: data.date,
+              paidBy: data.paidBy,
+              paidTo: data.paidTo ?? null,
+              account: touchesMe ? data.account || null : null,
+              offBook: !touchesMe,
+            })
+            setEditingMov(null)
+          }}
+          onDelete={async () => {
+            await onDeleteMov(editingMov.id)
+            setEditingMov(null)
+          }}
+          onClose={() => setEditingMov(null)}
+        />
+      )}
+
       {addingPending && (
         <PendingEditor
-          onSave={async (data) => {
-            await onAddPending(data)
+          onSave={async (d) => {
+            await onAddPending(d)
             setAddingPending(false)
           }}
           onClose={() => setAddingPending(false)}
@@ -395,8 +442,8 @@ function ProjectDetail({
       {editingPending && (
         <PendingEditor
           initial={editingPending}
-          onSave={async (data) => {
-            await onUpdatePending(editingPending.id, data)
+          onSave={async (d) => {
+            await onUpdatePending(editingPending.id, d)
             setEditingPending(null)
           }}
           onDelete={async () => {
@@ -407,40 +454,14 @@ function ProjectDetail({
         />
       )}
 
-      {editingMov && (
-        <MovementSheet
-          initial={editingMov}
-          accounts={accounts}
-          onSave={async (data) => {
-            await onUpdateMovement(editingMov.id, {
-              amount: data.amount,
-              charged: data.charged ?? null,
-              concept: data.concept,
-              date: data.date,
-              account: data.account || null,
-              paidFrom: data.kind === 'expense' ? data.paidFrom : null,
-            })
-            setEditingMov(null)
-          }}
-          onDelete={async () => {
-            await onDeleteMovement(editingMov.id)
-            setEditingMov(null)
-          }}
-          onClose={() => setEditingMov(null)}
-        />
-      )}
-
       {editor}
     </div>
   )
 }
 
-// Lista de cosas que faltan comprar y aún no tienen dinero. Es un plan: no
-// mueve cuentas ni entra a reportes hasta que se convierte en gasto.
-function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatus, onBuy }) {
+function PendingSection({ items, projectName, onAdd, onEdit, onToggleStatus, onBuy }) {
   const [toast, setToast] = useState('')
   const total = items.reduce((a, p) => a + (p.amount || 0), 0)
-  const missing = Math.max(0, total - Math.max(0, cash))
 
   const notify = (result) => {
     if (result === 'copied') setToast('Copiado al portapapeles ✓')
@@ -451,8 +472,7 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
 
   const shareOne = async (p) => {
     const link = normalizeUrl(p.link)
-    const text = `${p.concept} — ${formatMoney(p.amount)}${link ? `\n${link}` : ''}`
-    notify(await shareText(text, projectName))
+    notify(await shareText(`${p.concept} — ${formatMoney(p.amount)}${link ? `\n${link}` : ''}`, projectName))
   }
 
   const shareList = async () => {
@@ -460,11 +480,12 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
       const link = normalizeUrl(p.link)
       return `• ${p.concept} — ${formatMoney(p.amount)}${link ? `\n  ${link}` : ''}`
     })
-    const text =
-      `Pendientes por comprar — ${projectName}\n\n${lines.join('\n')}\n\n` +
-      `Total pendiente: ${formatMoney(total)}\n` +
-      (missing > 0 ? `Falta depositar: ${formatMoney(missing)}` : 'Alcanza con lo que hay en caja')
-    notify(await shareText(text, `Pendientes — ${projectName}`))
+    notify(
+      await shareText(
+        `Pendientes por comprar — ${projectName}\n\n${lines.join('\n')}\n\nTotal: ${formatMoney(total)}`,
+        `Pendientes — ${projectName}`
+      )
+    )
   }
 
   return (
@@ -495,15 +516,9 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
                     {p.status === 'solicitado' ? '📞 Solicitado' : '○ Por pedir'}
                   </button>
                   {normalizeUrl(p.link) && (
-                    <button className="pending-link" onClick={() => openLink(p.link)} aria-label="Abrir enlace">
-                      🔗 Ver
-                    </button>
+                    <button className="pending-link" onClick={() => openLink(p.link)}>🔗 Ver</button>
                   )}
-                  <button className="pending-share" onClick={() => shareOne(p)} aria-label="Compartir">
-                    ↗
-                  </button>
-                  {/* Solo se puede comprar lo que ya se pidió: así el botón no
-                      da la impresión de que el pendiente ya está resuelto. */}
+                  <button className="pending-share" onClick={() => shareOne(p)} aria-label="Compartir">↗</button>
                   {p.status === 'solicitado' && (
                     <button className="pending-buy" onClick={() => onBuy(p)}>✓ Ya lo compré</button>
                   )}
@@ -512,17 +527,9 @@ function PendingSection({ items, cash, projectName, onAdd, onEdit, onToggleStatu
             ))}
           </div>
 
-          <div className="project-row">
+          <div className="project-row total">
             <span>Total pendiente</span>
             <span>{formatMoney(total)}</span>
-          </div>
-          <div className="project-row">
-            <span>Hay en caja</span>
-            <span>{formatMoney(Math.max(0, cash))}</span>
-          </div>
-          <div className="project-row total">
-            <span>{missing > 0 ? 'Falta pedirle al socio' : 'Alcanza con lo que hay'}</span>
-            <span className={missing > 0 ? 'expense-text' : 'income-text'}>{formatMoney(missing)}</span>
           </div>
 
           <p className="pending-flow-hint">
@@ -549,8 +556,7 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
   const amount = Number(value)
   const safeLink = normalizeUrl(link)
   const badLink = link.trim() !== '' && !safeLink
-  const canSave =
-    concept.trim() !== '' && value !== '' && Number.isFinite(amount) && amount > 0 && !badLink
+  const canSave = concept.trim() !== '' && value !== '' && Number.isFinite(amount) && amount > 0 && !badLink
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -585,6 +591,7 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
             onChange={(e) => setValue(e.target.value)}
           />
         </div>
+
         <p className="picker-label">Enlace de dónde comprarlo (opcional)</p>
         <input
           className="note-input"
@@ -597,16 +604,8 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
         {badLink ? (
           <p className="tanda-error">⚠️ Ese enlace no es válido. Debe empezar con http:// o https://</p>
         ) : (
-          safeLink && (
-            <button className="link-btn" onClick={() => openLink(safeLink)}>
-              🔗 Probar enlace
-            </button>
-          )
+          safeLink && <button className="link-btn" onClick={() => openLink(safeLink)}>🔗 Probar enlace</button>
         )}
-
-        <p className="piggy-hint">
-          Es solo un plan: no mueve tus cuentas hasta que lo marques como comprado.
-        </p>
 
         <div className="sheet-actions">
           {initial && (
@@ -639,11 +638,48 @@ function PendingEditor({ initial, onSave, onDelete, onClose }) {
 function ProjectEditor({ initial, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const [name, setName] = useState(initial?.name ?? '')
-  const [partner, setPartner] = useState(initial?.partner ?? '')
-  const [note, setNote] = useState(initial?.note ?? '')
+  const [mode, setMode] = useState(initial?.mode ?? 'gestoria')
+  const [people, setPeople] = useState(
+    initial?.participants ?? [{ id: ME_ID, name: 'Yo', share: 0 }]
+  )
+  const [newName, setNewName] = useState('')
   const [status, setStatus] = useState(initial?.status ?? 'active')
 
-  const canSave = name.trim().length > 0
+  // Al cambiar de modo se reacomodan las participaciones: en gestoría el socio
+  // carga todo; en asociación se reparte en partes iguales.
+  const applyMode = (m, list) => {
+    if (m === 'gestoria') {
+      const others = list.filter((p) => p.id !== ME_ID)
+      const each = others.length ? equalSharesFor(others.length) : []
+      return [
+        { id: ME_ID, name: 'Yo', share: 0 },
+        ...others.map((p, i) => ({ ...p, share: each[i] ?? 0 })),
+      ]
+    }
+    const shares = equalSharesFor(list.length)
+    return list.map((p, i) => ({ ...p, share: shares[i] }))
+  }
+
+  const selectMode = (m) => {
+    setMode(m)
+    setPeople(applyMode(m, people))
+  }
+
+  const addPerson = () => {
+    const n = newName.trim()
+    if (!n) return
+    setPeople(applyMode(mode, [...people, { id: crypto.randomUUID(), name: n, share: 0 }]))
+    setNewName('')
+  }
+
+  const removePerson = (id) => setPeople(applyMode(mode, people.filter((p) => p.id !== id)))
+
+  const setShare = (id, value) =>
+    setPeople(people.map((p) => (p.id === id ? { ...p, share: Number(value) || 0 } : p)))
+
+  const totalShare = people.reduce((a, p) => a + (p.share || 0), 0)
+  const sharesOk = Math.abs(totalShare - 100) < 0.5
+  const canSave = name.trim() !== '' && people.length >= 2 && sharesOk
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -662,22 +698,64 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
           onChange={(e) => setName(e.target.value)}
         />
 
-        <p className="picker-label">Socio (quien pone el capital)</p>
-        <input
-          className="note-input"
-          type="text"
-          placeholder="Nombre del socio"
-          value={partner}
-          onChange={(e) => setPartner(e.target.value)}
-        />
+        <p className="picker-label">¿Cómo trabajas este proyecto?</p>
+        <div className="kind-picker">
+          {Object.entries(PROJECT_MODES).map(([id, m]) => (
+            <button
+              key={id}
+              type="button"
+              className={`kind-chip ${mode === id ? 'selected' : ''}`}
+              style={{ flexBasis: '100%' }}
+              onClick={() => selectMode(id)}
+            >
+              <span className="kind-chip-label">{m.label}</span>
+              <span className="kind-chip-hint">{m.hint}</span>
+            </button>
+          ))}
+        </div>
 
-        <input
-          className="note-input"
-          type="text"
-          placeholder="Nota (opcional)"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-        />
+        <p className="picker-label">Socios y participación en el costo</p>
+        <div className="participant-list">
+          {people.map((p) => (
+            <div key={p.id} className="participant-row">
+              <span className="participant-name">{p.id === ME_ID ? '👤 Yo' : p.name}</span>
+              <input
+                className="participant-share-input"
+                type="number"
+                inputMode="decimal"
+                min="0"
+                max="100"
+                value={p.share}
+                onChange={(e) => setShare(p.id, e.target.value)}
+              />
+              <span className="participant-pct">%</span>
+              {p.id !== ME_ID && (
+                <button className="participant-remove" onClick={() => removePerson(p.id)} aria-label="Quitar">
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="participant-add">
+          <input
+            className="note-input"
+            type="text"
+            placeholder="Nombre del socio"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addPerson()}
+          />
+          <button className="btn-ghost" onClick={addPerson} disabled={!newName.trim()}>+</button>
+        </div>
+        {!sharesOk && (
+          <p className="tanda-error">⚠️ Las participaciones suman {totalShare}%. Deben sumar 100%.</p>
+        )}
+        {mode === 'gestoria' && (
+          <p className="piggy-hint">
+            En gestoría tú vas al 0%: el costo es del socio, así que todo lo que pagues de tu bolsa te lo deben.
+          </p>
+        )}
 
         {initial && (
           <>
@@ -708,8 +786,7 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
               onClick={async () => {
                 const ok = await confirm({
                   title: `Eliminar "${initial.name}"`,
-                  message:
-                    'Se elimina el proyecto y todos los movimientos de su libro diario. Los saldos de tus cuentas se ajustan.',
+                  message: 'Se elimina el proyecto y todos los movimientos de su libro diario.',
                 })
                 if (ok) onDelete(initial.id)
               }}
@@ -720,9 +797,7 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
           <button
             className="btn-primary"
             disabled={!canSave}
-            onClick={() =>
-              onSave({ name: name.trim(), partner: partner.trim(), note: note.trim(), status })
-            }
+            onClick={() => onSave({ name: name.trim(), mode, participants: people, status })}
           >
             Guardar
           </button>
@@ -732,102 +807,56 @@ function ProjectEditor({ initial, onSave, onDelete, onClose }) {
   )
 }
 
-const KIND_OPTIONS = [
-  { id: 'funding', label: '💰 Capital', hint: 'El socio te entregó dinero' },
-  { id: 'expense', label: '🧰 Gasto', hint: 'Pago del proyecto' },
-  { id: 'fee', label: '⭐ Honorario', hint: 'Tu pago por gestionar' },
-  { id: 'reimbursement', label: '↩️ Reembolso', hint: 'Te devolvieron lo que adelantaste' },
-  { id: 'refund', label: '📤 Devolución', hint: 'Regresas sobrante al socio' },
-]
-
-function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }) {
+function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDelete, onClose }) {
   const confirm = useConfirm()
   const { categories } = useCategories()
-  const isEdit = !!initial
-  const [kind, setKind] = useState(initial?.projectKind ?? (prefill ? 'expense' : 'expense'))
+  const people = project.participants ?? []
+  const isSettlement = kind === 'settlement'
+  const isFee = kind === 'fee'
+
   const [value, setValue] = useState(
     initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
   )
-  const [chargedValue, setChargedValue] = useState(
-    initial?.charged != null ? String(initial.charged) : ''
-  )
+  const [chargedValue, setChargedValue] = useState(initial?.charged != null ? String(initial.charged) : '')
   const [concept, setConcept] = useState(initial?.concept ?? prefill?.concept ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
-  const [paidFrom, setPaidFrom] = useState(initial?.paidFrom ?? 'fund')
+  // El honorario siempre lo aportas tú; los demás movimientos pueden ser de
+  // cualquier participante.
+  const [paidBy, setPaidBy] = useState(initial?.paidBy ?? (isFee ? ME_ID : ME_ID))
+  const [paidTo, setPaidTo] = useState(initial?.paidTo ?? '')
+  const [account, setAccount] = useState(initial?.account ?? (accounts[0]?.id ?? ''))
   const [category, setCategory] = useState(initial?.category ?? '')
-
-  // El honorario y el reembolso pueden salir del propio fondo (el dinero ya
-  // está en tu cuenta: solo deja de ser del socio, no mueve saldo) o pagarse
-  // aparte (entra dinero nuevo). Por defecto salen del fondo, que es lo común.
-  const takenFromFund = (k) => k === 'fee' || k === 'reimbursement'
-  const [fromFund, setFromFund] = useState(
-    initial ? takenFromFund(initial.projectKind) && !initial.account : takenFromFund(kind)
-  )
-  const [account, setAccount] = useState(
-    initial?.account ?? (takenFromFund(kind) ? '' : accounts[0]?.id ?? '')
-  )
-
-  const selectKind = (k) => {
-    setKind(k)
-    if (takenFromFund(k)) {
-      setFromFund(true)
-      setAccount('')
-    } else {
-      setFromFund(false)
-      setAccount((a) => a || accounts[0]?.id || '')
-    }
-  }
 
   const amount = Number(value)
   const charged = chargedValue === '' ? null : Number(chargedValue)
-  const optionalAccount = takenFromFund(kind)
-  const needsAccount = !(optionalAccount && fromFund)
-  const canSave = value !== '' && Number.isFinite(amount) && amount > 0 && (!needsAccount || !!account)
+  // Solo se pide cuenta cuando el dinero es tuyo: tú pagaste o tú lo recibes.
+  const touchesMyMoney = paidBy === ME_ID || (isSettlement && paidTo === ME_ID)
+  const canSave =
+    value !== '' &&
+    Number.isFinite(amount) &&
+    amount > 0 &&
+    (!isSettlement || (!!paidTo && paidTo !== paidBy)) &&
+    (!touchesMyMoney || !!account)
   const incomeCategories = categories.filter((c) => c.type === 'income')
 
-  const label =
-    kind === 'expense'
-      ? 'Costo real (lo que pagaste)'
-      : kind === 'funding'
-        ? 'Monto que te entregó'
-        : 'Monto'
+  const title = initial ? 'Editar movimiento' : isSettlement ? 'Pago directo' : isFee ? 'Mi honorario' : 'Nuevo gasto'
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()}>
         <div className="sheet-handle" />
         <div className="sheet-head">
-          <h2>{isEdit ? 'Editar movimiento' : 'Nuevo movimiento'}</h2>
+          <h2>{title}</h2>
           <button className="icon-btn ghost" onClick={onClose} aria-label="Cerrar">✕</button>
         </div>
 
-        {!isEdit && (
-          <>
-            <p className="picker-label">Tipo de movimiento</p>
-            <div className="kind-picker">
-              {KIND_OPTIONS.map((k) => (
-                <button
-                  key={k.id}
-                  type="button"
-                  className={`kind-chip ${kind === k.id ? 'selected' : ''}`}
-                  onClick={() => selectKind(k.id)}
-                >
-                  <span className="kind-chip-label">{k.label}</span>
-                  <span className="kind-chip-hint">{k.hint}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-        {isEdit && <p className="piggy-hint">{KIND_LABEL[kind]}</p>}
         {prefill && (
           <p className="piggy-hint">
-            Al guardarlo saldrá de <strong>Pendientes por comprar</strong> y entrará al libro diario como gasto.
-            Ajusta el monto si costó distinto.
+            Al guardarlo saldrá de <strong>Pendientes por comprar</strong> y entrará al libro diario.
           </p>
         )}
 
-        <p className="picker-label">{label}</p>
+        <p className="picker-label">{isSettlement ? 'Monto' : 'Costo real (lo que se pagó)'}</p>
         <div className="amount-input-wrap">
           <span className="amount-prefix">$</span>
           <input
@@ -843,26 +872,46 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
           />
         </div>
 
+        {!isFee && (
+          <>
+            <p className="picker-label">{isSettlement ? '¿Quién paga?' : '¿Quién pagó?'}</p>
+            <div className="subcategory-picker">
+              {people.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`subcategory-chip ${paidBy === p.id ? 'selected' : ''}`}
+                  onClick={() => setPaidBy(p.id)}
+                >
+                  {p.id === ME_ID ? '👤 Yo' : p.name}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {isSettlement && (
+          <>
+            <p className="picker-label">¿A quién le paga?</p>
+            <div className="subcategory-picker">
+              {people
+                .filter((p) => p.id !== paidBy)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    className={`subcategory-chip ${paidTo === p.id ? 'selected' : ''}`}
+                    onClick={() => setPaidTo(p.id)}
+                  >
+                    {p.id === ME_ID ? '👤 Yo' : p.name}
+                  </button>
+                ))}
+            </div>
+          </>
+        )}
+
         {kind === 'expense' && (
           <>
-            <p className="picker-label">¿Quién lo pagó?</p>
-            <div className="type-toggle">
-              <button
-                type="button"
-                className={`type-toggle-btn ${paidFrom === 'fund' ? 'selected' : ''}`}
-                onClick={() => setPaidFrom('fund')}
-              >
-                Del fondo
-              </button>
-              <button
-                type="button"
-                className={`type-toggle-btn ${paidFrom === 'own' ? 'selected' : ''}`}
-                onClick={() => setPaidFrom('own')}
-              >
-                Lo adelanté yo
-              </button>
-            </div>
-
             <p className="picker-label">Lo que le cobré al socio (opcional)</p>
             <div className="amount-input-wrap">
               <span className="amount-prefix">$</span>
@@ -878,68 +927,43 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
               />
             </div>
             {charged != null && charged > amount && (
-              <p className="piggy-hint">
-                Tu margen en esta compra: <strong>{formatMoney(charged - amount)}</strong>
-              </p>
+              <p className="piggy-hint">Tu margen: <strong>{formatMoney(charged - amount)}</strong></p>
             )}
           </>
         )}
 
-        <p className="picker-label">Concepto</p>
-        <input
-          className="note-input"
-          type="text"
-          placeholder={kind === 'expense' ? 'Ej. Hojalatería, refacciones…' : 'Descripción (opcional)'}
-          value={concept}
-          onChange={(e) => setConcept(e.target.value)}
-        />
-
-        {optionalAccount && (
+        {touchesMyMoney && accounts.length > 0 && (
           <>
-            <p className="picker-label">¿De dónde sale?</p>
-            <div className="type-toggle">
-              <button
-                type="button"
-                className={`type-toggle-btn ${fromFund ? 'selected' : ''}`}
-                onClick={() => { setFromFund(true); setAccount('') }}
-              >
-                Del fondo
-              </button>
-              <button
-                type="button"
-                className={`type-toggle-btn ${!fromFund ? 'selected' : ''}`}
-                onClick={() => { setFromFund(false); setAccount(account || accounts[0]?.id || '') }}
-              >
-                Me lo pagaron aparte
-              </button>
-            </div>
-            <p className="piggy-hint">
-              {fromFund
-                ? 'Sale del dinero del socio que ya tienes: baja la caja del proyecto y no mueve el saldo de tus cuentas.'
-                : 'Entra dinero nuevo a la cuenta que elijas; la caja del proyecto no cambia.'}
+            <p className="picker-label">
+              {paidBy === ME_ID && !isSettlement
+                ? '¿De qué cuenta salió?'
+                : paidBy === ME_ID
+                  ? '¿De qué cuenta sale?'
+                  : '¿A qué cuenta entró?'}
             </p>
-          </>
-        )}
-
-        {accounts.length > 0 && needsAccount && (
-          <>
-            <p className="picker-label">Cuenta</p>
             <div className="subcategory-picker">
               {accounts.map((a) => (
                 <button
                   key={a.id}
                   type="button"
                   className={`subcategory-chip ${account === a.id ? 'selected' : ''}`}
-                  onClick={() => setAccount(account === a.id ? '' : a.id)}
+                  onClick={() => setAccount(a.id)}
                 >
                   {a.icon} {a.name}
                 </button>
               ))}
             </div>
+            <p className="piggy-hint">Se registrará en tus movimientos y afectará el saldo de esa cuenta.</p>
           </>
         )}
 
-        {kind === 'fee' && !isEdit && incomeCategories.length > 0 && (
+        {!touchesMyMoney && !isFee && (
+          <p className="piggy-hint">
+            Lo pagó {nameOf(project, paidBy)}: no toca tus cuentas ni aparece en tus movimientos.
+          </p>
+        )}
+
+        {isFee && !initial && incomeCategories.length > 0 && (
           <>
             <p className="picker-label">Categoría del ingreso (opcional)</p>
             <div className="subcategory-picker">
@@ -957,6 +981,15 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
           </>
         )}
 
+        <p className="picker-label">Concepto</p>
+        <input
+          className="note-input"
+          type="text"
+          placeholder={kind === 'expense' ? 'Ej. Hojalatería, refacciones…' : 'Descripción (opcional)'}
+          value={concept}
+          onChange={(e) => setConcept(e.target.value)}
+        />
+
         <p className="picker-label">Fecha</p>
         <input
           className="date-input"
@@ -967,7 +1000,7 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
         />
 
         <div className="sheet-actions">
-          {isEdit && (
+          {initial && (
             <button
               className="btn-danger"
               onClick={async () => {
@@ -991,8 +1024,9 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
                 charged: kind === 'expense' ? charged : null,
                 concept,
                 date,
+                paidBy: isFee ? ME_ID : paidBy,
+                paidTo: isSettlement ? paidTo : null,
                 account,
-                paidFrom,
                 category,
               })
             }
@@ -1005,20 +1039,20 @@ function MovementSheet({ initial, prefill, accounts, onSave, onDelete, onClose }
   )
 }
 
-// Resumen para Inicio: proyectos activos con caja y lo que te deben.
+// Resumen para Inicio: cuánto te deben en proyectos activos.
 export function ProjectsSummary({ projects, expenses, onOpen }) {
   const movementsByProject = useProjectMovements(expenses)
-  const active = projects.filter((p) => p.status !== 'closed')
+  const active = projects.filter((p) => p.status !== 'closed' && p.participants)
 
   const totals = useMemo(() => {
-    let cash = 0
     let owed = 0
+    let profit = 0
     for (const p of active) {
-      const d = projectDerived(movementsByProject.get(p.id) ?? [])
-      cash += d.cash
-      owed += d.owedToMe
+      const s = projectSummary(p, movementsByProject.get(p.id) ?? [])
+      owed += Math.max(0, s.myBalance)
+      profit += s.profit
     }
-    return { cash, owed }
+    return { owed, profit }
   }, [active, movementsByProject])
 
   if (active.length === 0) return null
@@ -1026,12 +1060,12 @@ export function ProjectsSummary({ projects, expenses, onOpen }) {
   return (
     <button className="loan-summary-card" onClick={onOpen}>
       <span className="loan-summary-item">
-        <span className="loan-summary-label">🏗️ En caja de proyectos</span>
-        <span className="loan-summary-value">{formatMoney(totals.cash)}</span>
+        <span className="loan-summary-label">🏗️ Me deben en proyectos</span>
+        <span className="loan-summary-value income-text">{formatMoney(totals.owed)}</span>
       </span>
       <span className="loan-summary-item">
-        <span className="loan-summary-label">Me deben reembolsar</span>
-        <span className="loan-summary-value income-text">{formatMoney(totals.owed)}</span>
+        <span className="loan-summary-label">Utilidad acumulada</span>
+        <span className="loan-summary-value">{formatMoney(totals.profit)}</span>
       </span>
     </button>
   )

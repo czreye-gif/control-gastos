@@ -15,107 +15,44 @@ import {
 import { db } from '../firebase'
 import { useAuth } from '../contexts/AuthContext'
 import { todayISO } from './dates'
+import { ME_ID, computeSplit } from './useSplit'
 
-// Tipos de movimiento del libro diario de un proyecto. El usuario opera el
-// proyecto (gestoría) con capital del socio, así que casi todo el dinero que
-// pasa por sus cuentas NO es suyo: se registra como traspaso. Lo único que es
-// ingreso real propio es el honorario (y el margen al comprar).
-//
-//  funding       — el socio entrega capital           → entra a mi cuenta (traspaso)
-//  expense       — gasto del proyecto                 → sale de mi cuenta (traspaso)
-//                  `paidFrom`: 'fund' (dinero del socio) | 'own' (lo adelanté yo)
-//                  `charged` (opcional): lo que le cobré al socio; el excedente
-//                  sobre el costo real es mi margen.
-//  fee           — mi honorario por la gestión        → INGRESO REAL mío
-//  reimbursement — me devuelven lo que adelanté       → traspaso
-//  refund        — devuelvo el sobrante al socio      → traspaso
-export const PROJECT_KINDS = ['funding', 'expense', 'fee', 'reimbursement', 'refund']
+export { ME_ID }
 
-export const KIND_LABEL = {
-  funding: 'Entrega de capital',
-  expense: 'Gasto',
-  fee: 'Mi honorario',
-  reimbursement: 'Reembolso recibido',
-  refund: 'Devolución al socio',
+// Dos formas de trabajar un proyecto:
+//  'gestoria'   — tú operas con capital del socio. El costo corre por su
+//                 cuenta (100%) y tú ganas honorarios y margen.
+//  'asociacion' — los socios comparten el costo según su participación.
+export const PROJECT_MODES = {
+  gestoria: {
+    label: '🛠️ Gestoría de operación',
+    hint: 'Tú operas con capital del socio. El costo corre por su cuenta; tú ganas honorarios y margen.',
+  },
+  asociacion: {
+    label: '🤝 Proyecto en asociación',
+    hint: 'Los socios comparten el costo según su participación. Al final se calcula quién le debe a quién.',
+  },
 }
 
-// Cuentas del proyecto a partir de sus movimientos.
-export function projectDerived(movements = []) {
-  let received = 0 // capital entregado por el socio
-  let spentFund = 0 // costo real pagado con el fondo
-  let chargedFund = 0 // lo cobrado al socio por esos gastos
-  let advanced = 0 // costo real que adelanté de mi bolsa
-  let chargedAdvanced = 0 // lo cobrado al socio por lo que adelanté
-  let feesFromFund = 0 // honorarios que tomé del fondo
-  let feesPaidApart = 0 // honorarios que me pagaron aparte
-  let reimbursedFromFund = 0
-  let reimbursedPaid = 0
-  let refunded = 0
+export const KIND_LABEL = {
+  expense: 'Gasto',
+  fee: 'Honorario',
+  settlement: 'Pago directo',
+}
 
-  for (const m of movements) {
-    const amt = m.amount || 0
-    const charged = m.charged != null ? m.charged : amt
-    switch (m.projectKind) {
-      case 'funding':
-        received += amt
-        break
-      case 'expense':
-        if (m.paidFrom === 'own') {
-          advanced += amt
-          chargedAdvanced += charged
-        } else {
-          spentFund += amt
-          chargedFund += charged
-        }
-        break
-      case 'fee':
-        if (m.account) feesPaidApart += amt
-        else feesFromFund += amt
-        break
-      case 'reimbursement':
-        if (m.account) reimbursedPaid += amt
-        else reimbursedFromFund += amt
-        break
-      case 'refund':
-        refunded += amt
-        break
-      default:
-        break
-    }
-  }
-
-  const fees = feesFromFund + feesPaidApart
-  const reimbursed = reimbursedFromFund + reimbursedPaid
-  const totalCost = spentFund + advanced
-  const totalCharged = chargedFund + chargedAdvanced
-  const margin = totalCharged - totalCost
-
-  // Lo que queda del dinero del socio en mis manos.
-  const cash = received - chargedFund - feesFromFund - reimbursedFromFund - refunded
-  // Lo que adelanté de mi bolsa y aún no me reembolsan.
-  const owedToMe = chargedAdvanced - reimbursed
-  // Mi ganancia por operar el proyecto.
-  const profit = fees + margin
-
+// Resumen de un proyecto a partir de sus movimientos.
+export function projectSummary(project, movements) {
+  const split = computeSplit({
+    participants: project.participants ?? [],
+    movements,
+  })
+  const me = split.balances.find((b) => b.id === ME_ID)
   return {
-    received,
-    spentFund,
-    chargedFund, // lo cobrado al socio por los gastos pagados del fondo
-    advanced,
-    chargedAdvanced, // lo cobrado al socio por lo que adelanté
-    reimbursed,
-    reimbursedFromFund, // reembolsos que tomé del propio fondo
-    reimbursedPaid, // reembolsos que me pagaron aparte
-    refunded,
-    fees,
-    feesFromFund, // honorarios tomados del fondo (sí bajan la caja)
-    feesPaidApart, // honorarios pagados aparte (no bajan la caja)
-    totalCost,
-    totalCharged,
-    margin,
-    cash,
-    owedToMe,
-    profit,
+    ...split,
+    // En gestoría, el saldo a favor del usuario es justo lo que le deben
+    // reembolsar (su participación es 0%).
+    owedToMe: Math.max(0, me?.balance ?? 0),
+    myBalance: me?.balance ?? 0,
   }
 }
 
@@ -139,21 +76,20 @@ export function useProjects() {
     return unsubscribe
   }, [user])
 
-  const addProject = ({ name, partner, note }) => {
-    return addDoc(collection(db, 'users', user.uid, 'projects'), {
+  const addProject = ({ name, mode, participants, note }) =>
+    addDoc(collection(db, 'users', user.uid, 'projects'), {
       name,
-      partner: partner || '',
+      mode: mode || 'gestoria',
+      participants,
       note: note || '',
       status: 'active',
       startDate: todayISO(),
+      pending: [],
       createdAt: serverTimestamp(),
     })
-  }
 
-  const updateProject = (id, data) =>
-    updateDoc(doc(db, 'users', user.uid, 'projects', id), data)
+  const updateProject = (id, data) => updateDoc(doc(db, 'users', user.uid, 'projects', id), data)
 
-  // Elimina el proyecto y todos los movimientos de su libro diario.
   const deleteProject = async (id) => {
     const snap = await getDocs(
       query(collection(db, 'users', user.uid, 'expenses'), where('projectId', '==', id))
@@ -162,39 +98,64 @@ export function useProjects() {
     await deleteDoc(doc(db, 'users', user.uid, 'projects', id))
   }
 
-  // Dirección del dinero según el tipo de movimiento.
-  const movementType = (kind) =>
-    kind === 'funding' || kind === 'fee' || kind === 'reimbursement' ? 'income' : 'expense'
+  return {
+    projects,
+    loading,
+    addProject,
+    updateProject,
+    deleteProject,
+    ...useLedger(user, 'projectId'),
+    ...usePending(user),
+  }
+}
 
-  const defaultNote = (project, kind, concept) => {
-    if (concept?.trim()) return `${project.name}: ${concept.trim()}`
-    return `${project.name}: ${KIND_LABEL[kind] ?? 'movimiento'}`
+// Movimientos del libro diario. Viven en `expenses` para que, cuando el dinero
+// sale o entra de TUS cuentas, alimenten tu app de gastos (Movimientos, saldos
+// y reportes). Cuando paga otro participante se marcan `offBook`: quedan en el
+// libro del proyecto pero no ensucian tus movimientos ni tus saldos.
+export function useLedger(user, ownerField) {
+  const noteFor = (owner, m, nameOf) => {
+    const who = nameOf(m.paidBy)
+    if (m.kind === 'settlement') return `${owner.name}: pago de ${who} a ${nameOf(m.paidTo)}`
+    if (m.kind === 'fee') return `${owner.name}: honorario`
+    return `${owner.name}: ${m.concept?.trim() || 'gasto'}`
   }
 
-  const addMovement = (project, { kind, amount, charged, concept, date, account, paidFrom, category }) => {
+  const addMovement = (owner, m, nameOf) => {
+    const paidByMe = m.paidBy === ME_ID
+    // El honorario es lo único que es ingreso propio real; el resto solo mueve
+    // dinero (traspaso) o ni siquiera te toca.
+    const isFee = m.kind === 'fee'
+    const receivesMoney = m.kind === 'settlement' && m.paidTo === ME_ID
     return addDoc(collection(db, 'users', user.uid, 'expenses'), {
-      amount,
-      type: movementType(kind),
-      // El honorario es lo único que sí es ingreso propio; todo lo demás es
-      // dinero del socio que solo pasa por mis cuentas.
-      transfer: kind !== 'fee',
-      category: kind === 'fee' ? category || null : null,
+      amount: m.amount,
+      type: isFee || receivesMoney ? 'income' : 'expense',
+      transfer: !isFee,
+      category: isFee ? m.category || null : m.category || null,
       subcategory: null,
-      note: defaultNote(project, kind, concept),
-      concept: concept?.trim() || '',
-      date: date || todayISO(),
-      account: account || null,
-      projectId: project.id,
-      projectKind: kind,
-      paidFrom: kind === 'expense' ? paidFrom || 'fund' : null,
-      charged: kind === 'expense' && charged != null ? charged : null,
+      note: noteFor(owner, m, nameOf),
+      concept: m.concept?.trim() || '',
+      date: m.date || todayISO(),
+      // Solo se pide (y se guarda) cuenta cuando el dinero es tuyo.
+      account: paidByMe || receivesMoney ? m.account || null : null,
+      [ownerField]: owner.id,
+      kind: m.kind,
+      paidBy: m.paidBy,
+      paidTo: m.paidTo ?? null,
+      charged: m.kind === 'expense' && m.charged != null ? m.charged : null,
+      // Lo que paga otro participante no toca tus cuentas: fuera de tus listas.
+      offBook: !paidByMe && !receivesMoney,
       createdAt: serverTimestamp(),
     })
   }
 
-  // --- Pendientes por comprar ---
-  // Son un plan, no dinero movido: viven como arreglo dentro del proyecto y no
-  // tocan cuentas ni reportes hasta que se convierten en gasto.
+  const updateMovement = (id, data) => updateDoc(doc(db, 'users', user.uid, 'expenses', id), data)
+  const deleteMovement = (id) => deleteDoc(doc(db, 'users', user.uid, 'expenses', id))
+
+  return { addMovement, updateMovement, deleteMovement }
+}
+
+function usePending(user) {
   const setPending = (project, list) =>
     updateDoc(doc(db, 'users', user.uid, 'projects', project.id), { pending: list })
 
@@ -213,23 +174,63 @@ export function useProjects() {
   const deletePending = (project, itemId) =>
     setPending(project, (project.pending ?? []).filter((p) => p.id !== itemId))
 
-  const updateMovement = (movementId, data) =>
-    updateDoc(doc(db, 'users', user.uid, 'expenses', movementId), data)
+  return { addPending, updatePending, deletePending }
+}
 
-  const deleteMovement = (movementId) =>
-    deleteDoc(doc(db, 'users', user.uid, 'expenses', movementId))
+// --- Migración del modelo viejo (fondo + paidFrom) al de participantes ---
+//
+// Antes el proyecto tenía un socio en texto y los movimientos hablaban de un
+// "fondo". Ahora todo se expresa como quién puso el dinero:
+//   funding       → pago directo del socio hacia ti
+//   expense       → gasto pagado por ti (salió de tu cuenta en ambos casos)
+//   fee           → honorario tuyo
+//   reimbursement → pago directo del socio hacia ti
+//   refund        → pago directo tuyo hacia el socio
+export async function migrateProject(uid, project) {
+  if (project.participants) return false // ya migrado
 
-  return {
-    projects,
-    loading,
-    addProject,
-    updateProject,
-    deleteProject,
-    addMovement,
-    updateMovement,
-    deleteMovement,
-    addPending,
-    updatePending,
-    deletePending,
-  }
+  const partnerId = crypto.randomUUID()
+  const partnerName = project.partner?.trim() || 'Socio'
+  const participants = [
+    { id: ME_ID, name: 'Yo', share: 0 },
+    { id: partnerId, name: partnerName, share: 100 },
+  ]
+
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'expenses'), where('projectId', '==', project.id))
+  )
+
+  await Promise.all(
+    snap.docs.map((d) => {
+      const m = d.data()
+      switch (m.projectKind) {
+        case 'funding':
+        case 'reimbursement':
+          return updateDoc(d.ref, {
+            kind: 'settlement',
+            paidBy: partnerId,
+            paidTo: ME_ID,
+            offBook: false,
+          })
+        case 'refund':
+          return updateDoc(d.ref, {
+            kind: 'settlement',
+            paidBy: ME_ID,
+            paidTo: partnerId,
+            offBook: false,
+          })
+        case 'fee':
+          return updateDoc(d.ref, { kind: 'fee', paidBy: ME_ID, paidTo: null, offBook: false })
+        default:
+          // Los gastos salían de tu cuenta tanto "del fondo" como "adelantados".
+          return updateDoc(d.ref, { kind: 'expense', paidBy: ME_ID, paidTo: null, offBook: false })
+      }
+    })
+  )
+
+  await updateDoc(doc(db, 'users', uid, 'projects', project.id), {
+    mode: 'gestoria',
+    participants,
+  })
+  return true
 }

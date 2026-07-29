@@ -14,7 +14,7 @@ import { downloadFile, movementsToCsv } from '../utils/exportCsv'
 const PAGE_SIZE = 20
 
 export default function Movements() {
-  const { expenses, loading, updateExpense, deleteExpense, reorderDay } = useExpenses()
+  const { myExpenses: expenses, loading, updateExpense, deleteExpense, reorderDay } = useExpenses()
   const { categories, getCategory, getSubcategory } = useCategories()
   const { accounts } = useAccounts()
   const navigate = useNavigate()

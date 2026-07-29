@@ -13,6 +13,7 @@ import Migration from './components/Migration'
 import Ahorros from './components/Ahorros'
 import Prestamos from './components/Prestamos'
 import Proyectos from './components/Proyectos'
+import Vacaciones from './components/Vacaciones'
 import GastosFacturables from './components/GastosFacturables'
 import Categories from './components/Categories'
 import NavBar from './components/NavBar'
@@ -49,6 +50,7 @@ function AppShell() {
           <Route path="/ahorros" element={<Ahorros />} />
           <Route path="/prestamos" element={<Prestamos />} />
           <Route path="/proyectos" element={<Proyectos />} />
+          <Route path="/vacaciones" element={<Vacaciones />} />
           <Route path="/facturables" element={<GastosFacturables />} />
           <Route path="/categorias" element={<Categories />} />
           <Route path="/migracion" element={<Migration />} />

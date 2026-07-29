@@ -85,6 +85,7 @@ export function useProjects() {
       status: 'active',
       startDate: todayISO(),
       pending: [],
+      concepts: [],
       createdAt: serverTimestamp(),
     })
 
@@ -106,6 +107,7 @@ export function useProjects() {
     deleteProject,
     ...useLedger(user, 'projectId'),
     ...usePending(user),
+    ...useConcepts(user),
   }
 }
 
@@ -175,6 +177,28 @@ function usePending(user) {
     setPending(project, (project.pending ?? []).filter((p) => p.id !== itemId))
 
   return { addPending, updatePending, deletePending }
+}
+
+// Conceptos frecuentes del proyecto (ej. "Caja de luz"), para llenar el gasto
+// con un toque en vez de escribirlo cada vez. Misma lógica que las
+// subcategorías de una categoría: una lista guardada en el propio proyecto,
+// que solo se agrega o se quita (sin renombrar).
+function useConcepts(user) {
+  const addConcept = (project, name) => {
+    const clean = name.trim()
+    if (!clean) return
+    const concept = { id: crypto.randomUUID(), name: clean }
+    return updateDoc(doc(db, 'users', user.uid, 'projects', project.id), {
+      concepts: [...(project.concepts ?? []), concept],
+    }).then(() => concept)
+  }
+
+  const deleteConcept = (project, conceptId) =>
+    updateDoc(doc(db, 'users', user.uid, 'projects', project.id), {
+      concepts: (project.concepts ?? []).filter((c) => c.id !== conceptId),
+    })
+
+  return { addConcept, deleteConcept }
 }
 
 // --- Migración del modelo viejo (fondo + paidFrom) al de participantes ---

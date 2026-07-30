@@ -8,9 +8,10 @@
 //
 // Un movimiento puede ser:
 //   'expense'    — gasto del proyecto/viaje (suma al costo)
-//   'fee'        — tu honorario: también es costo, y cuenta como algo que
-//                  aportaste (por eso el socio te lo debe)
 //   'settlement' — pago directo entre dos personas (no suma al costo)
+//
+// La ganancia del usuario (honorarios, margen) no se lleva aquí: es
+// discrecional y se maneja como un ingreso normal fuera del proyecto.
 
 export const ME_ID = 'me'
 
@@ -20,23 +21,18 @@ export function computeSplit({ participants = [], movements = [], equalShares = 
   for (const p of participants) paid[p.id] = 0
 
   let totalCost = 0
-  let totalRealCost = 0 // sin margen: lo que realmente costó
-  let margin = 0
-  let fees = 0
 
   for (const m of movements) {
-    // `charged` permite cobrar más de lo que costó; la diferencia es margen.
-    const charged = m.charged != null ? m.charged : m.amount
     if (m.kind === 'settlement') {
       if (paid[m.paidBy] != null) paid[m.paidBy] += m.amount
       if (paid[m.paidTo] != null) paid[m.paidTo] -= m.amount
       continue
     }
-    totalCost += charged
-    totalRealCost += m.amount
-    if (m.kind === 'fee') fees += m.amount
-    else margin += charged - m.amount
-    if (paid[m.paidBy] != null) paid[m.paidBy] += charged
+    // Compatibilidad con datos antiguos que aún tengan `charged`: se respeta
+    // para no descuadrar proyectos previos, aunque ya no se pueda capturar.
+    const effectiveAmount = m.charged != null ? m.charged : m.amount
+    totalCost += effectiveAmount
+    if (paid[m.paidBy] != null) paid[m.paidBy] += effectiveAmount
   }
 
   const shareOf = (p) =>
@@ -56,10 +52,6 @@ export function computeSplit({ participants = [], movements = [], equalShares = 
 
   return {
     totalCost,
-    totalRealCost,
-    margin,
-    fees,
-    profit: fees + margin,
     balances,
     settlements: settleDebts(balances),
     perPerson: participants.length ? totalCost / participants.length : 0,

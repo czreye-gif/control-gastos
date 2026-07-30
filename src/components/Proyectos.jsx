@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { formatMoney } from './ExpenseList'
 import { useExpenses } from '../utils/useExpenses'
 import { useAccounts } from '../utils/useAccounts'
-import { useCategories } from '../contexts/CategoriesContext'
 import { useProjects, projectSummary, migrateProject, PROJECT_MODES, ME_ID } from '../utils/useProjects'
 import { equalSharesFor } from '../utils/useSplit'
 import { useAuth } from '../contexts/AuthContext'
@@ -186,12 +185,6 @@ export default function Proyectos() {
                 {formatMoney(Math.abs(s.myBalance))}
               </span>
             </span>
-            {isGestoria && (
-              <span className="project-fig">
-                <span className="project-fig-label">Utilidad</span>
-                <span className="project-fig-value income-text">{formatMoney(s.profit)}</span>
-              </span>
-            )}
           </span>
         </button>
       )
@@ -315,24 +308,6 @@ function ProjectDetail({
         )}
       </div>
 
-      {isGestoria && (
-        <div className="project-block">
-          <p className="project-block-title">Mi utilidad</p>
-          <div className="project-row">
-            <span>Honorarios</span>
-            <span>{formatMoney(s.fees)}</span>
-          </div>
-          <div className="project-row">
-            <span>Margen en compras</span>
-            <span>{formatMoney(s.margin)}</span>
-          </div>
-          <div className="project-row total">
-            <span>Total ganado</span>
-            <span className="income-text">{formatMoney(s.profit)}</span>
-          </div>
-        </div>
-      )}
-
       <PendingSection
         items={pending}
         projectName={project.name}
@@ -349,9 +324,6 @@ function ProjectDetail({
 
       <div className="trip-actions">
         <button className="btn-primary" onClick={() => setAdding({ kind: 'expense' })}>+ Gasto</button>
-        {isGestoria && (
-          <button className="btn-ghost" onClick={() => setAdding({ kind: 'fee' })}>⭐ Honorario</button>
-        )}
         <button className="btn-ghost" onClick={() => setAdding({ kind: 'settlement' })}>💸 Pago directo</button>
       </div>
 
@@ -424,7 +396,6 @@ function ProjectDetail({
             const touchesMe = data.paidBy === ME_ID || data.paidTo === ME_ID
             await onUpdate(editingMov.id, {
               amount: data.amount,
-              charged: data.charged ?? null,
               concept: data.concept,
               date: data.date,
               paidBy: data.paidBy,
@@ -919,17 +890,14 @@ function ProjectEditor({ initial, onSave, onDelete, onAddConcept, onUpdateConcep
 
 function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDelete, onClose, onAddConcept }) {
   const confirm = useConfirm()
-  const { categories } = useCategories()
   const people = project.participants ?? []
   const isSettlement = kind === 'settlement'
-  const isFee = kind === 'fee'
   const [addingConcept, setAddingConcept] = useState(false)
   const [newConceptName, setNewConceptName] = useState('')
 
   const [value, setValue] = useState(
     initial ? String(initial.amount) : prefill?.amount != null ? String(prefill.amount) : ''
   )
-  const [chargedValue, setChargedValue] = useState(initial?.charged != null ? String(initial.charged) : '')
   const [concept, setConcept] = useState(initial?.concept ?? prefill?.concept ?? '')
   const [date, setDate] = useState(initial?.date ?? todayISO())
 
@@ -947,15 +915,11 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
     setAddingConcept(false)
     setNewConceptName('')
   }
-  // El honorario siempre lo aportas tú; los demás movimientos pueden ser de
-  // cualquier participante.
-  const [paidBy, setPaidBy] = useState(initial?.paidBy ?? (isFee ? ME_ID : ME_ID))
+  const [paidBy, setPaidBy] = useState(initial?.paidBy ?? ME_ID)
   const [paidTo, setPaidTo] = useState(initial?.paidTo ?? '')
   const [account, setAccount] = useState(initial?.account ?? (accounts[0]?.id ?? ''))
-  const [category, setCategory] = useState(initial?.category ?? '')
 
   const amount = Number(value)
-  const charged = chargedValue === '' ? null : Number(chargedValue)
   // Solo se pide cuenta cuando el dinero es tuyo: tú pagaste o tú lo recibes.
   const touchesMyMoney = paidBy === ME_ID || (isSettlement && paidTo === ME_ID)
   const canSave =
@@ -964,9 +928,8 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
     amount > 0 &&
     (!isSettlement || (!!paidTo && paidTo !== paidBy)) &&
     (!touchesMyMoney || !!account)
-  const incomeCategories = categories.filter((c) => c.type === 'income')
 
-  const title = initial ? 'Editar movimiento' : isSettlement ? 'Pago directo' : isFee ? 'Mi honorario' : 'Nuevo gasto'
+  const title = initial ? 'Editar movimiento' : isSettlement ? 'Pago directo' : 'Nuevo gasto'
 
   return (
     <div className="sheet-backdrop" onClick={onClose}>
@@ -999,23 +962,19 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
           />
         </div>
 
-        {!isFee && (
-          <>
-            <p className="picker-label">{isSettlement ? '¿Quién paga?' : '¿Quién pagó?'}</p>
-            <div className="subcategory-picker">
-              {people.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`subcategory-chip ${paidBy === p.id ? 'selected' : ''}`}
-                  onClick={() => setPaidBy(p.id)}
-                >
-                  {p.id === ME_ID ? '👤 Yo' : p.name}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        <p className="picker-label">{isSettlement ? '¿Quién paga?' : '¿Quién pagó?'}</p>
+        <div className="subcategory-picker">
+          {people.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              className={`subcategory-chip ${paidBy === p.id ? 'selected' : ''}`}
+              onClick={() => setPaidBy(p.id)}
+            >
+              {p.id === ME_ID ? '👤 Yo' : p.name}
+            </button>
+          ))}
+        </div>
 
         {isSettlement && (
           <>
@@ -1037,36 +996,10 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
           </>
         )}
 
-        {kind === 'expense' && (
-          <>
-            <p className="picker-label">Lo que le cobré al socio (opcional)</p>
-            <div className="amount-input-wrap">
-              <span className="amount-prefix">$</span>
-              <input
-                className="amount-input-field"
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="1"
-                placeholder="Igual al costo"
-                value={chargedValue}
-                onChange={(e) => setChargedValue(e.target.value)}
-              />
-            </div>
-            {charged != null && charged > amount && (
-              <p className="piggy-hint">Tu margen: <strong>{formatMoney(charged - amount)}</strong></p>
-            )}
-          </>
-        )}
-
         {touchesMyMoney && accounts.length > 0 && (
           <>
             <p className="picker-label">
-              {paidBy === ME_ID && !isSettlement
-                ? '¿De qué cuenta salió?'
-                : paidBy === ME_ID
-                  ? '¿De qué cuenta sale?'
-                  : '¿A qué cuenta entró?'}
+              {paidBy === ME_ID ? '¿De qué cuenta salió?' : '¿A qué cuenta entró?'}
             </p>
             <div className="subcategory-picker">
               {accounts.map((a) => (
@@ -1084,28 +1017,10 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
           </>
         )}
 
-        {!touchesMyMoney && !isFee && (
+        {!touchesMyMoney && (
           <p className="piggy-hint">
             Lo pagó {nameOf(project, paidBy)}: no toca tus cuentas ni aparece en tus movimientos.
           </p>
-        )}
-
-        {isFee && !initial && incomeCategories.length > 0 && (
-          <>
-            <p className="picker-label">Categoría del ingreso (opcional)</p>
-            <div className="subcategory-picker">
-              {incomeCategories.map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`subcategory-chip ${category === c.id ? 'selected' : ''}`}
-                  onClick={() => setCategory(category === c.id ? '' : c.id)}
-                >
-                  {c.icon} {c.name}
-                </button>
-              ))}
-            </div>
-          </>
         )}
 
         {kind === 'expense' ? (
@@ -1197,13 +1112,11 @@ function MovementSheet({ initial, kind, prefill, project, accounts, onSave, onDe
               onSave({
                 kind,
                 amount,
-                charged: kind === 'expense' ? charged : null,
                 concept,
                 date,
-                paidBy: isFee ? ME_ID : paidBy,
+                paidBy,
                 paidTo: isSettlement ? paidTo : null,
                 account,
-                category,
               })
             }
           >
@@ -1220,15 +1133,13 @@ export function ProjectsSummary({ projects, expenses, onOpen }) {
   const movementsByProject = useProjectMovements(expenses)
   const active = projects.filter((p) => p.status !== 'closed' && p.participants)
 
-  const totals = useMemo(() => {
-    let owed = 0
-    let profit = 0
+  const owed = useMemo(() => {
+    let total = 0
     for (const p of active) {
       const s = projectSummary(p, movementsByProject.get(p.id) ?? [])
-      owed += Math.max(0, s.myBalance)
-      profit += s.profit
+      total += Math.max(0, s.myBalance)
     }
-    return { owed, profit }
+    return total
   }, [active, movementsByProject])
 
   if (active.length === 0) return null
@@ -1237,11 +1148,7 @@ export function ProjectsSummary({ projects, expenses, onOpen }) {
     <button className="loan-summary-card" onClick={onOpen}>
       <span className="loan-summary-item">
         <span className="loan-summary-label">🏗️ Me deben en proyectos</span>
-        <span className="loan-summary-value income-text">{formatMoney(totals.owed)}</span>
-      </span>
-      <span className="loan-summary-item">
-        <span className="loan-summary-label">Utilidad acumulada</span>
-        <span className="loan-summary-value">{formatMoney(totals.profit)}</span>
+        <span className="loan-summary-value income-text">{formatMoney(owed)}</span>
       </span>
     </button>
   )
